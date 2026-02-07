@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Habit OS - Local Edition</title>
+    <title>Habit OS - Perfection Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -19,207 +19,263 @@
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); }
         .dark .glass { background: rgba(15, 23, 42, 0.7); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: fadeIn 0.3s ease-out forwards; }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-dark-900 transition-colors duration-300">
+<body class="bg-slate-50 dark:bg-dark-900 transition-colors duration-300 overflow-hidden">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- ICONS (Lucide Style SVGs) ---
-        const Check = ({ size = 20 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
-        const Plus = ({ size = 20 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
-        const Trash = ({ size = 16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
-        const Edit2 = ({ size = 16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>;
-        const InboxIcon = ({ size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>;
+        // --- ICONS ---
+        const Icons = {
+            Check: ({ size = 20 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>,
+            Plus: ({ size = 20 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>,
+            Trash: ({ size = 16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
+            Edit: ({ size = 16 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>,
+            Inbox: ({ size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>,
+            Calendar: ({ size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
+            Archive: ({ size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>,
+            Settings: ({ size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        };
 
         function App() {
-            // --- STATE ---
-            const [habits, setHabits] = useState([]);
-            const [completions, setCompletions] = useState({});
+            // --- CORE STATE ---
+            const [habits, setHabits] = useState(() => JSON.parse(localStorage.getItem('habits_v2') || '[]'));
+            const [completions, setCompletions] = useState(() => JSON.parse(localStorage.getItem('completions_v2') || '{}'));
             const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+            const [centerView, setCenterView] = useState('calendar'); // 'calendar' or 'inbox'
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [editingItem, setEditingItem] = useState(null);
             const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
 
-            // --- LOAD DATA ---
+            // --- PERSISTENCE ---
             useEffect(() => {
-                const savedHabits = JSON.parse(localStorage.getItem('habits') || '[]');
-                const savedComps = JSON.parse(localStorage.getItem('completions') || '{}');
-                setHabits(savedHabits);
-                setCompletions(savedComps);
+                localStorage.setItem('habits_v2', JSON.stringify(habits));
+                localStorage.setItem('completions_v2', JSON.stringify(completions));
+                localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
                 if (isDarkMode) document.documentElement.classList.add('dark');
-            }, []);
+                else document.documentElement.classList.remove('dark');
+            }, [habits, completions, isDarkMode]);
 
-            // --- SAVE DATA ---
-            const saveData = (newHabits, newComps) => {
-                setHabits(newHabits);
-                setCompletions(newComps);
-                localStorage.setItem('habits', JSON.stringify(newHabits));
-                localStorage.setItem('completions', JSON.stringify(newComps));
-            };
-
-            // --- LOGIC: COMPUTE STATS ---
-            const getDailyStats = (date) => {
-                const dueItems = habits.filter(h => {
-                    if (h.archived) return false;
-                    if (h.type === 'event' || h.type === 'birthday') return false;
-                    if (h.isInbox) return false;
+            // --- LOGIC: DAILY STATS ---
+            const getStats = (date) => {
+                const day = new Date(date).getDay();
+                const due = habits.filter(h => {
+                    if (h.archived || h.type === 'event' || h.type === 'birthday') return false;
                     if (h.type === 'task') return h.targetDate === date;
-                    if (h.type === 'habit') {
-                        const dayOfWeek = new Date(date).getDay();
-                        return h.frequency.includes(dayOfWeek);
-                    }
+                    if (h.type === 'habit') return h.frequency.includes(day);
                     return false;
                 });
-                
-                if (dueItems.length === 0) return 0;
-                const completedCount = dueItems.filter(h => completions[date]?.includes(h.id)).length;
-                return Math.round((completedCount / dueItems.length) * 100);
+                if (due.length === 0) return 0;
+                const done = due.filter(h => completions[date]?.includes(h.id)).length;
+                return Math.round((done / due.length) * 100);
             };
 
-            // --- ACTION: TOGGLE COMPLETION ---
-            const toggleComplete = (id, date) => {
+            // --- HANDLERS ---
+            const toggleHabit = (id, date) => {
                 const dayComps = completions[date] || [];
-                const newDayComps = dayComps.includes(id) 
-                    ? dayComps.filter(item => item !== id)
+                const newComps = dayComps.includes(id) 
+                    ? dayComps.filter(hid => hid !== id) 
                     : [...dayComps, id];
+                setCompletions(prev => ({ ...prev, [date]: newComps }));
                 
-                const newComps = { ...completions, [date]: newDayComps };
-                saveData(habits, newComps);
-                
-                if (!dayComps.includes(id) && getDailyStats(date) >= 99) {
+                if (!dayComps.includes(id) && getStats(date) >= 99) {
                     confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
                 }
             };
 
-            // --- ACTION: SAVE ITEM (HABIT/TASK) ---
-            const handleSave = (itemData) => {
-                const isNew = !itemData.id;
-                const id = isNew ? Date.now().toString() : itemData.id;
-                
-                // Logic for Inbox: If it's a task with no date, it's an Inbox item
+            const toggleSubtask = (habitId, subtaskIdx) => {
+                setHabits(prev => prev.map(h => {
+                    if (h.id === habitId) {
+                        const newSub = [...(h.subtasks || [])];
+                        newSub[subtaskIdx].completed = !newSub[subtaskIdx].completed;
+                        return { ...h, subtasks: newSub };
+                    }
+                    return h;
+                }));
+            };
+
+            const saveItem = (itemData) => {
+                const id = itemData.id || Date.now().toString();
+                // Logic: If Task has no date, it's Inbox.
                 const isInbox = itemData.type === 'task' && !itemData.targetDate;
                 
-                const finalItem = { 
-                    ...itemData, 
-                    id, 
-                    isInbox,
-                    subtasks: itemData.subtasks || [] 
-                };
-
-                let newHabits;
-                if (isNew) {
-                    newHabits = [...habits, finalItem];
-                } else {
-                    newHabits = habits.map(h => h.id === id ? finalItem : h);
-                }
+                const finalItem = { ...itemData, id, isInbox, subtasks: itemData.subtasks || [] };
                 
-                saveData(newHabits, completions);
+                setHabits(prev => {
+                    const exists = prev.find(h => h.id === id);
+                    return exists ? prev.map(h => h.id === id ? finalItem : h) : [...prev, finalItem];
+                });
                 setIsModalOpen(false);
                 setEditingItem(null);
             };
 
-            const deleteItem = (id) => {
-                const newHabits = habits.filter(h => h.id !== id);
-                saveData(newHabits, completions);
-                setIsModalOpen(false);
-            };
-
-            // --- SUB-TASK TOGGLE (Agenda View) ---
-            const toggleSubtask = (habitId, subtaskIndex) => {
-                const newHabits = habits.map(h => {
-                    if (h.id === habitId) {
-                        const updatedSubtasks = [...h.subtasks];
-                        updatedSubtasks[subtaskIndex].completed = !updatedSubtasks[subtaskIndex].completed;
-                        return { ...h, subtasks: updatedSubtasks };
-                    }
-                    return h;
-                });
-                saveData(newHabits, completions);
-            };
-
             return (
-                <div className="flex h-screen overflow-hidden text-slate-800 dark:text-slate-200">
-                    {/* SIDEBAR */}
-                    <aside className="w-64 border-r border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-800 p-6 overflow-y-auto scrollbar-hide">
-                        <h1 className="text-xl font-bold mb-8 text-indigo-600 dark:text-indigo-400">Habit OS</h1>
+                <div className="flex h-screen w-full bg-slate-50 dark:bg-dark-900 text-slate-800 dark:text-slate-200">
+                    
+                    {/* LEFT PANE: REGISTRY */}
+                    <aside className="w-72 border-r border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-800 flex flex-col">
+                        <div className="p-6">
+                            <h1 className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mb-8 tracking-tighter">HABIT OS</h1>
+                            <nav className="space-y-1">
+                                <button onClick={() => setCenterView('calendar')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${centerView === 'calendar' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' : 'hover:bg-slate-50 dark:hover:bg-dark-700 text-slate-500'}`}>
+                                    <Icons.Calendar /> Analytics
+                                </button>
+                                <button onClick={() => setCenterView('inbox')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${centerView === 'inbox' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' : 'hover:bg-slate-50 dark:hover:bg-dark-700 text-slate-500'}`}>
+                                    <Icons.Inbox /> Inbox ({habits.filter(h => h.isInbox).length})
+                                </button>
+                                <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 dark:hover:bg-dark-700">
+                                    <Icons.Archive /> Archive
+                                </button>
+                            </nav>
+                        </div>
                         
-                        {/* INBOX */}
-                        <section className="mb-8">
-                            <div className="flex items-center gap-2 mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">
-                                <InboxIcon size={14} /> Inbox
-                            </div>
+                        <div className="flex-1 overflow-y-auto px-6 scrollbar-hide">
+                            <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4 mt-4">Active Habits</h2>
                             <div className="space-y-2">
-                                {habits.filter(h => h.isInbox).map(h => (
-                                    <div key={h.id} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-dark-700 group">
-                                        <span className="text-sm truncate">{h.icon} {h.name}</span>
-                                        <button onClick={() => { setEditingItem(h); setIsModalOpen(true); }} className="opacity-0 group-hover:opacity-100 text-indigo-500">
-                                            <Edit2 size={14}/>
-                                        </button>
+                                {habits.filter(h => h.type === 'habit' && !h.archived).map(h => (
+                                    <div key={h.id} className="group flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-dark-700 border border-transparent hover:border-slate-100 dark:hover:border-dark-600">
+                                        <div className="flex items-center gap-2 truncate">
+                                            <span>{h.icon}</span>
+                                            <span className="text-sm font-medium truncate">{h.name}</span>
+                                        </div>
+                                        <button onClick={() => {setEditingItem(h); setIsModalOpen(true);}} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-500"><Icons.Edit size={14}/></button>
                                     </div>
                                 ))}
-                                {habits.filter(h => h.isInbox).length === 0 && <p className="text-xs italic text-slate-400">Empty</p>}
                             </div>
-                        </section>
+                        </div>
 
-                        <button 
-                            onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
-                            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-all"
-                        >
-                            + Quick Add
-                        </button>
+                        <div className="p-6 space-y-3 border-t border-slate-100 dark:border-dark-700">
+                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-slate-400 hover:text-indigo-500 transition-colors">
+                                <Icons.Settings size={14}/> {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                            </button>
+                            <button onClick={() => {setEditingItem(null); setIsModalOpen(true);}} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-200 dark:shadow-none hover:scale-[1.02] transition-transform">
+                                + NEW ITEM
+                            </button>
+                        </div>
                     </aside>
 
-                    {/* MAIN CONTENT (Agenda) */}
-                    <main className="flex-1 bg-slate-50 dark:bg-dark-900 p-8 overflow-y-auto">
-                        <header className="flex justify-between items-center mb-8">
-                            <div>
-                                <h2 className="text-3xl font-black">Today's Agenda</h2>
-                                <p className="text-slate-400">{selectedDate}</p>
-                            </div>
-                            <div className="h-16 w-16 rounded-full border-4 border-indigo-500 flex items-center justify-center font-bold text-lg">
-                                {getDailyStats(selectedDate)}%
-                            </div>
-                        </header>
+                    {/* CENTER PANE: ANALYTICS OR INBOX */}
+                    <main className="flex-1 overflow-y-auto p-10 bg-slate-50 dark:bg-dark-900 scrollbar-hide">
+                        {centerView === 'calendar' ? (
+                            <div className="animate-in max-w-4xl mx-auto">
+                                <header className="mb-10">
+                                    <h2 className="text-4xl font-black tracking-tight">System Performance</h2>
+                                    <p className="text-slate-400 font-medium">Visualizing your discipline over the last 30 days.</p>
+                                </header>
+                                
+                                {/* HEATMAP PLACEHOLDER (Original Style) */}
+                                <div className="bg-white dark:bg-dark-800 rounded-3xl p-8 border border-slate-200 dark:border-dark-700 shadow-sm mb-8">
+                                    <div className="flex justify-between items-end mb-6">
+                                        <div>
+                                            <p className="text-xs font-black text-indigo-500 uppercase tracking-widest mb-1">Consistency Heatmap</p>
+                                            <h3 className="text-xl font-bold">Frequency Grid</h3>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-3xl font-black text-indigo-600">{getStats(selectedDate)}%</span>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase">Daily Score</p>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-2">
+                                        {[...Array(28)].map((_, i) => (
+                                            <div key={i} className={`aspect-square rounded-md ${i > 20 ? 'bg-indigo-500' : 'bg-slate-100 dark:bg-dark-700'} opacity-${(i%5)*20 + 20}`}></div>
+                                        ))}
+                                    </div>
+                                </div>
 
-                        <div className="grid gap-4">
+                                {/* BAR CHART PLACEHOLDER */}
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="bg-white dark:bg-dark-800 rounded-3xl p-6 border border-slate-200 dark:border-dark-700">
+                                        <p className="text-[10px] font-black text-indigo-500 uppercase mb-4">Weekly Trajectory</p>
+                                        <div className="flex items-end gap-2 h-32">
+                                            {[40, 70, 45, 90, 65, 80, 50].map((v, i) => (
+                                                <div key={i} className="flex-1 bg-indigo-100 dark:bg-dark-700 rounded-t-lg relative group">
+                                                    <div style={{height: `${v}%`}} className="bg-indigo-500 rounded-t-lg w-full transition-all group-hover:bg-indigo-400"></div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="bg-indigo-600 rounded-3xl p-6 text-white flex flex-col justify-between shadow-xl shadow-indigo-200 dark:shadow-none">
+                                        <Icons.Plus size={32}/>
+                                        <div>
+                                            <h3 className="text-2xl font-black">Keep it up!</h3>
+                                            <p className="text-indigo-100 text-sm opacity-80 font-medium">You are 12% more consistent this week than last.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="animate-in max-w-2xl mx-auto">
+                                <header className="mb-10">
+                                    <h2 className="text-4xl font-black tracking-tight">The Inbox</h2>
+                                    <p className="text-slate-400 font-medium">Tasks waiting for a date.</p>
+                                </header>
+                                <div className="space-y-3">
+                                    {habits.filter(h => h.isInbox).map(task => (
+                                        <div key={task.id} className="p-5 bg-white dark:bg-dark-800 rounded-2xl border border-slate-200 dark:border-dark-700 flex justify-between items-center group hover:shadow-md transition-all">
+                                           <div className="flex items-center gap-4">
+                                              <span className="text-3xl">{task.icon}</span>
+                                              <div>
+                                                 <p className="font-bold text-lg">{task.name}</p>
+                                                 <p className="text-xs text-slate-400 font-bold uppercase tracking-tighter">Unscheduled</p>
+                                              </div>
+                                           </div>
+                                           <button onClick={() => { setEditingItem(task); setIsModalOpen(true); }} className="px-4 py-2 text-xs font-black bg-slate-100 dark:bg-dark-700 rounded-xl hover:bg-indigo-600 hover:text-white transition-all uppercase">
+                                              Schedule
+                                           </button>
+                                        </div>
+                                    ))}
+                                    {habits.filter(h => h.isInbox).length === 0 && (
+                                        <div className="text-center py-20 bg-white/50 dark:bg-dark-800/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-dark-700">
+                                            <p className="text-slate-400 italic font-medium">Your inbox is clear. Everything is scheduled!</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* RIGHT PANE: AGENDA */}
+                    <aside className="w-80 border-l border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-800 p-6 overflow-y-auto scrollbar-hide">
+                        <div className="mb-8">
+                            <h3 className="text-xl font-black tracking-tight mb-1">Today's Agenda</h3>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p>
+                        </div>
+
+                        <div className="space-y-4">
                             {habits.filter(h => {
                                 if (h.isInbox || h.archived) return false;
                                 if (h.type === 'task' || h.type === 'event' || h.type === 'birthday') return h.targetDate === selectedDate;
                                 return h.frequency.includes(new Date(selectedDate).getDay());
-                            }).map(h => {
+                            }).sort((a,b) => (a.time || '99:99').localeCompare(b.time || '99:99')).map(h => {
                                 const isDone = completions[selectedDate]?.includes(h.id);
                                 return (
-                                    <div key={h.id} className={`p-4 rounded-2xl border transition-all ${isDone ? 'bg-white/50 border-transparent opacity-60' : 'bg-white border-slate-200 dark:bg-dark-800 dark:border-dark-700 shadow-sm'}`}>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <button 
-                                                    onClick={() => toggleComplete(h.id, selectedDate)}
-                                                    className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${isDone ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300'}`}
-                                                >
-                                                    {isDone && <Check size={16} />}
-                                                </button>
-                                                <div>
-                                                    <h3 className={`font-bold ${isDone ? 'line-through text-slate-400' : ''}`}>{h.icon} {h.name}</h3>
-                                                    {h.time && <span className="text-xs text-slate-400">{h.time}</span>}
-                                                </div>
+                                    <div key={h.id} className={`p-4 rounded-2xl border transition-all ${isDone ? 'bg-slate-50/50 border-transparent opacity-60' : 'bg-white border-slate-100 dark:bg-dark-700 dark:border-dark-600 shadow-sm'}`}>
+                                        <div className="flex items-center gap-3">
+                                            <button 
+                                                onClick={() => toggleHabit(h.id, selectedDate)}
+                                                className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${isDone ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300'}`}
+                                            >
+                                                {isDone && <Icons.Check size={12} />}
+                                            </button>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className={`font-bold text-sm truncate ${isDone ? 'line-through text-slate-400' : ''}`}>{h.icon} {h.name}</h4>
+                                                {h.time && <p className="text-[10px] text-slate-400 font-bold">{h.time}</p>}
                                             </div>
-                                            <button onClick={() => { setEditingItem(h); setIsModalOpen(true); }} className="text-slate-300 hover:text-indigo-500"><Edit2 size={16}/></button>
+                                            <button onClick={() => {setEditingItem(h); setIsModalOpen(true);}} className="text-slate-300 hover:text-indigo-500"><Icons.Edit size={14}/></button>
                                         </div>
 
-                                        {/* SUB-TASKS UI */}
+                                        {/* Sub-tasks in Agenda */}
                                         {h.subtasks && h.subtasks.length > 0 && (
-                                            <div className="mt-4 ml-12 space-y-2 border-l-2 border-slate-100 dark:border-dark-700 pl-4">
+                                            <div className="mt-3 ml-9 space-y-1.5 border-l-2 border-slate-100 dark:border-dark-600 pl-3">
                                                 {h.subtasks.map((st, idx) => (
-                                                    <div key={idx} className="flex items-center gap-2 text-sm group">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            checked={st.completed} 
-                                                            onChange={() => toggleSubtask(h.id, idx)}
-                                                            className="rounded text-indigo-600"
-                                                        />
+                                                    <div key={idx} className="flex items-center gap-2 text-[11px] font-medium group cursor-pointer" onClick={() => toggleSubtask(h.id, idx)}>
+                                                        <div className={`w-3 h-3 rounded-sm border ${st.completed ? 'bg-indigo-500 border-indigo-500' : 'border-slate-300'}`}>
+                                                            {st.completed && <Icons.Check size={8} />}
+                                                        </div>
                                                         <span className={st.completed ? 'line-through text-slate-400' : ''}>{st.text}</span>
                                                     </div>
                                                 ))}
@@ -229,22 +285,20 @@
                                 );
                             })}
                         </div>
-                    </main>
+                    </aside>
 
-                    {/* EDIT MODAL */}
+                    {/* ITEM MODAL */}
                     {isModalOpen && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                            <div className="bg-white dark:bg-dark-800 w-full max-w-md rounded-3xl p-6 shadow-2xl">
-                                <h2 className="text-xl font-bold mb-6">{editingItem ? 'Edit Item' : 'New Item'}</h2>
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                            <div className="bg-white dark:bg-dark-800 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl animate-in">
+                                <h2 className="text-2xl font-black mb-6">{editingItem ? 'Update Item' : 'Create New'}</h2>
                                 <form onSubmit={(e) => {
                                     e.preventDefault();
                                     const fd = new FormData(e.target);
-                                    const subtasks = Array.from(e.target.querySelectorAll('.subtask-input')).map(input => ({
-                                        text: input.value,
-                                        completed: false
-                                    })).filter(s => s.text.trim() !== "");
-
-                                    handleSave({
+                                    // Parse Subtasks from the UI
+                                    const stInputs = Array.from(e.target.querySelectorAll('.st-input')).map(i => ({ text: i.value, completed: false })).filter(s => s.text.trim());
+                                    
+                                    saveItem({
                                         ...editingItem,
                                         name: fd.get('name'),
                                         icon: fd.get('icon') || '📝',
@@ -252,47 +306,49 @@
                                         targetDate: fd.get('targetDate'),
                                         time: fd.get('time'),
                                         frequency: editingItem?.frequency || [0,1,2,3,4,5,6],
-                                        subtasks: subtasks.length > 0 ? subtasks : (editingItem?.subtasks || [])
+                                        subtasks: stInputs.length > 0 ? stInputs : (editingItem?.subtasks || [])
                                     });
                                 }}>
                                     <div className="space-y-4">
-                                        <div className="flex gap-2">
-                                            <input name="icon" className="w-12 p-3 rounded-xl bg-slate-100 dark:bg-dark-700 text-center" defaultValue={editingItem?.icon || '📝'} maxLength="2" />
-                                            <input name="name" className="flex-1 p-3 rounded-xl bg-slate-100 dark:bg-dark-700" placeholder="Item name..." defaultValue={editingItem?.name} required />
+                                        <div className="flex gap-3">
+                                            <input name="icon" className="w-16 p-4 rounded-2xl bg-slate-100 dark:bg-dark-700 text-center text-xl" defaultValue={editingItem?.icon || '📝'} />
+                                            <input name="name" className="flex-1 p-4 rounded-2xl bg-slate-100 dark:bg-dark-700 font-bold" placeholder="What's the goal?" defaultValue={editingItem?.name} required />
                                         </div>
                                         
-                                        <select name="type" className="w-full p-3 rounded-xl bg-slate-100 dark:bg-dark-700" defaultValue={editingItem?.type || 'task'}>
-                                            <option value="task">Task (One-off)</option>
-                                            <option value="habit">Habit (Recurring)</option>
+                                        <select name="type" className="w-full p-4 rounded-2xl bg-slate-100 dark:bg-dark-700 font-bold text-sm" defaultValue={editingItem?.type || 'task'}>
+                                            <option value="task">One-off Task</option>
+                                            <option value="habit">Recurring Habit</option>
                                             <option value="event">Event (Blue)</option>
                                             <option value="birthday">Birthday (Pink)</option>
                                         </select>
 
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <input name="targetDate" type="date" className="p-3 rounded-xl bg-slate-100 dark:bg-dark-700" defaultValue={editingItem?.targetDate || selectedDate} />
-                                            <input name="time" type="time" className="p-3 rounded-xl bg-slate-100 dark:bg-dark-700" defaultValue={editingItem?.time} />
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Date</label>
+                                                <input name="targetDate" type="date" className="w-full p-4 rounded-2xl bg-slate-100 dark:bg-dark-700 text-sm font-bold" defaultValue={editingItem?.targetDate || selectedDate} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Time</label>
+                                                <input name="time" type="time" className="w-full p-4 rounded-2xl bg-slate-100 dark:bg-dark-700 text-sm font-bold" defaultValue={editingItem?.time} />
+                                            </div>
                                         </div>
 
-                                        {/* SUB-TASK EDITOR */}
                                         <div className="pt-4 border-t border-slate-100 dark:border-dark-700">
-                                            <label className="text-xs font-bold uppercase text-slate-400 mb-2 block">Checklist (Sub-tasks)</label>
-                                            <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+                                            <label className="text-[10px] font-black uppercase text-slate-400 mb-3 block">Sub-tasks / Checklist</label>
+                                            <div className="space-y-2">
                                                 {(editingItem?.subtasks || []).map((st, i) => (
-                                                    <input key={i} className="subtask-input w-full p-2 text-sm rounded-lg bg-slate-50 dark:bg-dark-700 border border-transparent focus:border-indigo-500" defaultValue={st.text} placeholder="Step description..." />
+                                                    <input key={i} className="st-input w-full p-3 rounded-xl bg-slate-50 dark:bg-dark-900 text-xs border border-transparent focus:border-indigo-500" defaultValue={st.text} />
                                                 ))}
-                                                <input className="subtask-input w-full p-2 text-sm rounded-lg bg-slate-50 dark:bg-dark-700 border border-transparent focus:border-indigo-500" placeholder="+ Add a step..." />
+                                                <input className="st-input w-full p-3 rounded-xl bg-slate-50 dark:bg-dark-900 text-xs border border-dashed border-slate-300 dark:border-dark-600 focus:border-indigo-500" placeholder="+ Add a step..." />
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex gap-3 mt-8">
-                                        {editingItem && (
-                                            <button type="button" onClick={() => deleteItem(editingItem.id)} className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors">
-                                                <Trash />
-                                            </button>
-                                        )}
-                                        <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 p-3 text-slate-500 font-bold">Cancel</button>
-                                        <button type="submit" className="flex-1 p-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Save</button>
+                                    <div className="flex gap-3 mt-10">
+                                        <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 p-4 text-slate-400 font-bold hover:text-slate-600 transition-colors">Discard</button>
+                                        <button type="submit" className="flex-1 p-4 bg-indigo-600 text-white rounded-[1.5rem] font-black shadow-lg shadow-indigo-100 dark:shadow-none hover:bg-indigo-700 transition-all">
+                                            {editingItem ? 'SAVE CHANGES' : 'CREATE ITEM'}
+                                        </button>
                                     </div>
                                 </form>
                             </div>
