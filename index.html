@@ -17,12 +17,8 @@
                     colors: {
                         dark: { 900: '#0f172a', 800: '#1e293b', 700: '#334155', 600: '#475569', 200: '#e2e8f0' }
                     },
-                    animation: {
-                        'fade-in': 'fadeIn 0.2s ease-out forwards',
-                    },
-                    keyframes: {
-                        fadeIn: { '0%': { opacity: '0', transform: 'translateY(5px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } }
-                    }
+                    animation: { 'fade-in': 'fadeIn 0.2s ease-out forwards' },
+                    keyframes: { fadeIn: { '0%': { opacity: '0', transform: 'translateY(5px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } }
                 }
             }
         }
@@ -32,6 +28,7 @@
         .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
         .dark .glass { background: rgba(15, 23, 42, 0.85); }
         body { -webkit-tap-highlight-color: transparent; }
+        .no-select { user-select: none; -webkit-user-select: none; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900 dark:bg-dark-900 dark:text-gray-200 transition-colors duration-300 font-sans selection:bg-indigo-500 selection:text-white">
@@ -62,6 +59,10 @@
         const Play = p => <Icon {...p}><polygon points="5 3 19 12 5 21 5 3"/></Icon>;
         const Pause = p => <Icon {...p}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></Icon>;
         const InboxIcon = p => <Icon {...p}><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></Icon>;
+        const Sort = p => <Icon {...p}><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></Icon>;
+        const ArrowUp = p => <Icon {...p}><path d="m18 15-6-6-6 6"/></Icon>;
+        const ArrowDown = p => <Icon {...p}><path d="m6 9 6 6 6-6"/></Icon>;
+        const FileText = p => <Icon {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></Icon>;
 
         // --- CONSTANTS ---
         const EMOJIS = ["📝", "💪", "💧", "📚", "🧘", "💰", "🎨", "🎵", "💻", "🍳", "🧹", "💊", "💤", "🎉", "🎂", "🐶", "🌳", "✈️"];
@@ -112,13 +113,9 @@
                 const year = new Date().getFullYear();
                 const startOfYear = new Date(year, 0, 1);
                 const endOfYear = new Date(year, 11, 31);
-                
                 const grid = [];
                 let currentWeek = [];
-                
-                for (let i = 0; i < startOfYear.getDay(); i++) {
-                    currentWeek.push({ isPadding: true, key: `pad-${i}` });
-                }
+                for (let i = 0; i < startOfYear.getDay(); i++) currentWeek.push({ isPadding: true, key: `pad-${i}` });
 
                 for (let d = new Date(startOfYear); d <= endOfYear; d.setDate(d.getDate() + 1)) {
                     const date = new Date(d);
@@ -127,16 +124,10 @@
                     const completedCount = (completions[k] || []).filter(id => habits.some(h => h.id === id && isHabitDueOnDate(h, date, k))).length;
                     const total = dueHabits.length;
                     const val = total === 0 ? 0 : (completedCount / total);
-                    
                     currentWeek.push({ date: date, key: k, val: val, isFuture: date > new Date() });
-
-                    if (currentWeek.length === 7) {
-                        grid.push(currentWeek);
-                        currentWeek = [];
-                    }
+                    if (currentWeek.length === 7) { grid.push(currentWeek); currentWeek = []; }
                 }
                 if (currentWeek.length > 0) grid.push(currentWeek);
-                
                 return grid;
             }, [completions, habits]);
 
@@ -158,16 +149,12 @@
 
         const ConsistencyChart = ({ completions, habits }) => {
             const data = useMemo(() => {
-                const days = 30; 
-                const result = []; 
-                const today = new Date();
-                
+                const days = 30; const result = []; const today = new Date();
                 for (let i = days - 1; i >= 0; i--) {
                     const d = new Date(); d.setDate(today.getDate() - i); const dateKey = formatDateKey(d);
                     const dueHabits = habits.filter(h => isHabitDueOnDate(h, d, dateKey));
                     const completedCount = (completions[dateKey] || []).filter(id => habits.some(h => h.id === id && isHabitDueOnDate(h, d, dateKey))).length;
-                    const totalDue = dueHabits.length;
-                    const value = totalDue === 0 ? 0 : (completedCount / totalDue);
+                    const value = dueHabits.length === 0 ? 0 : (completedCount / dueHabits.length);
                     result.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, fullDate: d.toLocaleDateString(), value: value });
                 }
                 return result;
@@ -282,7 +269,6 @@
                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Name</label>
                                 <input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-white" />
                             </div>
-                            
                             {(type === 'habit' || type === 'task') && (
                                 <div className="space-y-4">
                                     <div className="flex gap-3">
@@ -295,7 +281,6 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
                                     <div className="flex gap-3">
                                         <div onClick={() => setUseTimer(!useTimer)} className={`flex-1 flex items-center justify-center p-3 rounded-xl border cursor-pointer transition-colors ${useTimer ? 'bg-indigo-50 border-indigo-500 text-indigo-600' : 'bg-gray-50 border-gray-200 dark:bg-dark-900 dark:border-dark-700 text-gray-500'}`}>
                                             <div className="flex items-center gap-2"><Clock size={16} /><span className="text-xs font-bold">Timer</span></div>
@@ -303,7 +288,6 @@
                                     </div>
                                 </div>
                             )}
-
                             <div className="flex gap-3">
                                 <div className="flex-1"><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Time</label><input type="time" value={time} onChange={e => setTime(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none text-sm dark:text-white" /></div>
                                 {(type !== 'habit') && (
@@ -319,9 +303,7 @@
                                     </div>
                                 )}
                             </div>
-                            
                             {type === 'habit' && (<div><label className="block text-xs font-bold text-gray-400 uppercase mb-2">Frequency</label><div className="flex justify-between">{DAYS_OF_WEEK.map((d, i) => (<button key={i} type="button" onClick={() => toggleDay(i)} className={`w-8 h-8 rounded-full text-xs font-bold transition-all ${frequency.includes(i) ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-dark-700 text-gray-400'}`}>{d}</button>))}</div></div>)}
-                            
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Sub-tasks</label>
                                 <div className="space-y-2 max-h-32 overflow-y-auto">
@@ -334,7 +316,6 @@
                                     <button type="button" onClick={addSubtask} className="text-xs text-indigo-500 font-bold hover:underline">+ Add Step</button>
                                 </div>
                             </div>
-                            
                             <div><label className="block text-xs font-bold text-gray-400 uppercase mb-2">Icon</label><div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">{EMOJIS.map(e => <button key={e} type="button" onClick={() => setIcon(e)} className={`flex-shrink-0 w-10 h-10 flex items-center justify-center text-xl rounded-lg ${icon === e ? 'bg-indigo-100 dark:bg-dark-700 border-2 border-indigo-500' : 'bg-gray-50 dark:bg-dark-900 dark:text-white'}`}>{e}</button>)}</div></div>
                             <div className="flex gap-3 pt-2">{initialData && <button type="button" onClick={() => { onDelete(initialData.id); onClose(); }} className="flex-1 py-3 text-red-600 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm font-bold">Delete</button>}<button type="submit" className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md">Save</button></div>
                         </form>
@@ -372,7 +353,9 @@
             const [chartMode, setChartMode] = useState('heatmap');
             const [selectedCategory, setSelectedCategory] = useState('All');
             const [activeFocusHabit, setActiveFocusHabit] = useState(null);
-            const [centerView, setCenterView] = useState('calendar'); 
+            const [centerView, setCenterView] = useState('calendar');
+            // NEW: Sort State
+            const [sortMode, setSortMode] = useState('time'); // 'time' or 'manual'
 
             useEffect(() => { 
                 localStorage.setItem('habit_os_data', JSON.stringify(habits)); 
@@ -393,7 +376,8 @@
                     ...habit, 
                     id: habit.id || Date.now().toString(), 
                     isInbox,
-                    subtasks: habit.subtasks || []
+                    subtasks: habit.subtasks || [],
+                    order: habit.order ?? habits.length // Preserve or assign order
                 };
                 
                 const newHabits = habit.id && habits.some(h => h.id === habit.id) ? habits.map(h => h.id === habit.id ? finalHabit : h) : [...habits, finalHabit];
@@ -429,6 +413,31 @@
                 updateData(newHabits, completions, dailyNotes);
             };
 
+            // Manual Sort Logic
+            const moveHabit = (id, direction) => {
+                const sorted = [...todaysHabits]; // Get current visual order
+                const idx = sorted.findIndex(h => h.id === id);
+                if (idx === -1) return;
+                const newIdx = idx + direction;
+                if (newIdx < 0 || newIdx >= sorted.length) return;
+
+                // Swap in the visual array
+                const itemA = sorted[idx];
+                const itemB = sorted[newIdx];
+                
+                // Update their 'order' properties in the MAIN habits array
+                const newHabits = habits.map(h => {
+                    if (h.id === itemA.id) return { ...h, order: itemB.order ?? newIdx }; // Swap order values
+                    if (h.id === itemB.id) return { ...h, order: itemA.order ?? idx };
+                    return h;
+                });
+                // Ensure every habit has an order property if missing
+                newHabits.forEach((h, i) => { if (h.order === undefined) h.order = i; });
+                
+                updateData(newHabits, completions, dailyNotes);
+            };
+
+
             const year = currentDate.getFullYear(); const month = currentDate.getMonth();
             const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay();
             const selectedDateKey = formatDateKey(selectedDate); const todayKey = formatDateKey(new Date());
@@ -444,7 +453,26 @@
                 if (type === 'task' || type === 'event') return h.targetDate === selectedDateKey;
                 const freq = h.frequency || [0,1,2,3,4,5,6];
                 return (type === 'habit' && freq.includes(selectedDate.getDay()));
-            }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+            });
+
+            // SORTING LOGIC
+            if (sortMode === 'time') {
+                todaysHabits.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+            } else {
+                todaysHabits.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            }
+
+            // Long Press Logic Hook (Inline)
+            const handlePointerDown = (habit) => {
+                window.longPressTimer = setTimeout(() => {
+                    setDetailHabit(habit);
+                    window.isLongPress = true;
+                }, 800); // 800ms hold to trigger notes
+            };
+            const handlePointerUp = () => {
+                clearTimeout(window.longPressTimer);
+                setTimeout(() => { window.isLongPress = false; }, 100);
+            };
 
             return (
                 <div className="flex flex-col md:flex-row h-screen overflow-hidden selection:bg-indigo-100 text-slate-800 dark:text-slate-200 font-sans">
@@ -467,8 +495,6 @@
                                 ))}
                             </div>
                         </div>
-                        
-                        {/* ADD BUTTON NOW INSIDE SIDEBAR */}
                         <div className="p-4 border-t border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 mt-auto">
                             <button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg transition-transform hover:-translate-y-0.5">+ Add Item</button>
                         </div>
@@ -565,7 +591,7 @@
                         {centerView === 'calendar' && (
                             <div className="h-36 md:h-44 bg-white dark:bg-dark-900 border-t border-gray-100 dark:border-dark-700 p-2 md:p-4 flex flex-col flex-shrink-0 relative z-20">
                                 <div className="flex items-center gap-2 mb-2 justify-between">
-                                    <div className="flex items-center gap-2"><Cloud size={16} className="text-gray-400" /><h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">{chartMode === 'heatmap' ? '2026 Activity' : 'Last 30 Days'}</h3></div>
+                                    <div className="flex items-center gap-2"><Cloud size={16} className="text-gray-400" /><h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">{chartMode === 'heatmap' ? '2025 Activity' : 'Last 30 Days'}</h3></div>
                                     <div className="flex bg-gray-100 dark:bg-dark-800 rounded p-0.5">
                                         <button onClick={() => setChartMode('bar')} className={`p-1 rounded ${chartMode === 'bar' ? 'bg-white dark:bg-dark-700 shadow text-indigo-500' : 'text-gray-400'}`}><BarChart2 size={14}/></button>
                                         <button onClick={() => setChartMode('heatmap')} className={`p-1 rounded ${chartMode === 'heatmap' ? 'bg-white dark:bg-dark-700 shadow text-indigo-500' : 'text-gray-400'}`}><Grid size={14}/></button>
@@ -583,7 +609,12 @@
                         <div className="glass px-6 py-4 md:p-6 border-b border-gray-200/50 dark:border-dark-700 flex flex-col gap-3 sticky top-0 z-30">
                             <div className="flex justify-between items-center">
                                 <div><h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}</h2><p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm">{selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p></div>
-                                <div className="flex items-center gap-3"><div className="md:hidden"><button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="bg-indigo-600 text-white p-2 rounded-lg shadow-sm"><Plus size={18} /></button></div></div>
+                                <div className="flex items-center gap-3">
+                                    <button onClick={() => setSortMode(sortMode === 'time' ? 'manual' : 'time')} className={`p-2 rounded-lg transition-colors ${sortMode === 'manual' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-dark-700 text-gray-500'}`} title="Toggle Sort Mode">
+                                        {sortMode === 'time' ? <Clock size={18}/> : <Sort size={18}/>}
+                                    </button>
+                                    <div className="md:hidden"><button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="bg-indigo-600 text-white p-2 rounded-lg shadow-sm"><Plus size={18} /></button></div>
+                                </div>
                             </div>
                             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                                 {visibleCategories.map(c => (
@@ -597,29 +628,45 @@
                                     const isDone = completions[selectedDateKey]?.includes(h.id);
                                     const type = h.type; const isHeroic = h.difficulty === 'heroic';
                                     return (
-                                        <div key={h.id} className={`relative group flex flex-col p-3.5 rounded-2xl border transition-all duration-200 ${isHeroic && !isDone ? 'border-yellow-400/50 bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-500/30' : type === 'birthday' ? 'border-pink-200 bg-pink-50 dark:bg-pink-900/10' : isDone ? 'bg-white/50 dark:bg-dark-700/50 border-transparent opacity-70' : 'bg-white dark:bg-dark-700 border-gray-100 dark:border-dark-600 shadow-sm'}`}>
-                                            <div className="flex items-center cursor-pointer" onClick={() => toggleHabit(h.id, selectedDateKey)}>
-                                                <div className={`w-6 h-6 rounded-lg mr-3 flex items-center justify-center transition-colors ${isDone ? 'bg-indigo-500 text-white' : (type === 'birthday' ? 'bg-pink-100 text-pink-500' : type === 'event' ? 'bg-blue-100 text-blue-500' : isHeroic ? 'bg-yellow-100 text-yellow-500' : 'bg-gray-100 dark:bg-dark-800 text-transparent')}`}>
-                                                    {isHeroic && !isDone ? <Star size={14} fill="currentColor" /> : type === 'birthday' ? <Cake size={14} /> : type === 'event' ? <CalendarIcon size={14} /> : <Check size={14} strokeWidth={3} />}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
+                                        <div 
+                                            key={h.id} 
+                                            onPointerDown={() => handlePointerDown(h)}
+                                            onPointerUp={handlePointerUp}
+                                            onPointerLeave={handlePointerUp}
+                                            className={`relative group flex flex-col p-3.5 rounded-2xl border transition-all duration-200 no-select ${isHeroic && !isDone ? 'border-yellow-400/50 bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-500/30' : type === 'birthday' ? 'border-pink-200 bg-pink-50 dark:bg-pink-900/10' : isDone ? 'bg-white/50 dark:bg-dark-700/50 border-transparent opacity-70' : 'bg-white dark:bg-dark-700 border-gray-100 dark:border-dark-600 shadow-sm'}`}
+                                        >
+                                            <div className="flex items-center cursor-pointer">
+                                                {sortMode === 'manual' ? (
+                                                    <div className="flex flex-col mr-2 gap-1">
+                                                        <button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, -1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400"><ArrowUp size={12}/></button>
+                                                        <button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, 1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400"><ArrowDown size={12}/></button>
+                                                    </div>
+                                                ) : (
+                                                    <div onClick={() => toggleHabit(h.id, selectedDateKey)} className={`w-6 h-6 rounded-lg mr-3 flex items-center justify-center transition-colors ${isDone ? 'bg-indigo-500 text-white' : (type === 'birthday' ? 'bg-pink-100 text-pink-500' : type === 'event' ? 'bg-blue-100 text-blue-500' : isHeroic ? 'bg-yellow-100 text-yellow-500' : 'bg-gray-100 dark:bg-dark-800 text-transparent')}`}>
+                                                        {isHeroic && !isDone ? <Star size={14} fill="currentColor" /> : type === 'birthday' ? <Cake size={14} /> : type === 'event' ? <CalendarIcon size={14} /> : <Check size={14} strokeWidth={3} />}
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="flex-1 min-w-0" onClick={() => { if(!window.isLongPress) toggleHabit(h.id, selectedDateKey); }}>
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-2"><span className="text-lg">{h.icon}</span><span className={`text-sm font-bold truncate ${isDone ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>{h.name}</span></div>
                                                         <div className="flex items-center gap-1">
                                                             {!isDone && (type === 'habit' || type === 'task') && h.useTimer && <button onClick={(e) => { e.stopPropagation(); setActiveFocusHabit(h); }} className="p-1 text-gray-300 hover:text-indigo-500"><Play size={14} fill="currentColor" /></button>}
+                                                            <button onClick={(e) => { e.stopPropagation(); setDetailHabit(h); }} className="p-1 text-gray-300 hover:text-indigo-500 md:hidden"><FileText size={12}/></button>
                                                             <button onClick={(e) => { e.stopPropagation(); setEditingHabit(h); setIsModalOpen(true); }} className="p-1 text-gray-300 hover:text-indigo-500"><Edit2 size={12} /></button>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2 mt-0.5">
                                                         {h.time && <span className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded"><Clock size={10} /> {h.time}</span>}
                                                         {type === 'task' && <span className="text-[9px] font-bold bg-gray-100 dark:bg-dark-600 text-gray-500 px-1.5 py-0.5 rounded uppercase">Task</span>}
+                                                        {dailyNotes[`${h.id}_${selectedDateKey}`] && <span className="text-[9px] font-bold bg-yellow-100 text-yellow-600 px-1.5 py-0.5 rounded uppercase">Note</span>}
                                                     </div>
                                                 </div>
                                             </div>
                                             {h.subtasks && h.subtasks.length > 0 && (
                                                 <div className="mt-3 pl-9 space-y-1">
                                                     {h.subtasks.map((st, idx) => (
-                                                        <div key={idx} className="flex items-center gap-2 cursor-pointer" onClick={() => toggleSubtask(h.id, idx)}>
+                                                        <div key={idx} className="flex items-center gap-2 cursor-pointer" onClick={(e) => {e.stopPropagation(); toggleSubtask(h.id, idx)}}>
                                                             <div className={`w-3 h-3 rounded border flex items-center justify-center ${st.completed ? 'bg-indigo-400 border-indigo-400' : 'border-gray-300'}`}>
                                                                 {st.completed && <Check size={8} className="text-white"/>}
                                                             </div>
