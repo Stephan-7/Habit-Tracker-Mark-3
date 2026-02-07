@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Habit OS - Final Polish</title>
+    <title>Habit OS - Final</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -467,6 +467,11 @@
                                 ))}
                             </div>
                         </div>
+                        
+                        {/* ADD BUTTON NOW INSIDE SIDEBAR */}
+                        <div className="p-4 border-t border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 mt-auto">
+                            <button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg transition-transform hover:-translate-y-0.5">+ Add Item</button>
+                        </div>
                     </div>
 
                     {/* CENTER (Calendar / Inbox) */}
@@ -628,10 +633,6 @@
                                 })}</div>
                             }
                         </div>
-                    </div>
-                    
-                    <div className="hidden md:block p-4 border-t border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 absolute bottom-0 left-0 w-80 z-30">
-                        <button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg transition-transform hover:-translate-y-0.5">+ Add Item</button>
                     </div>
 
                     {/* MODALS */}
