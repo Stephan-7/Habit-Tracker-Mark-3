@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Habit OS (Vanilla)</title>
+    <title>Habit OS Local</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -13,6 +17,9 @@
                 extend: {
                     colors: {
                         dark: { 900: '#0f172a', 800: '#1e293b', 700: '#334155', 600: '#475569', 200: '#e2e8f0' }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     }
                 }
             }
@@ -23,620 +30,626 @@
         .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .scrollbar-thin::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
         .dark .scrollbar-thin::-webkit-scrollbar-thumb { background-color: #475569; }
-        .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px); }
-        .dark .glass { background: rgba(15, 23, 42, 0.9); }
-        .hidden { display: none; }
+        .modal-animate { animation: fadeIn 0.2s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .no-select { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        .dark .glass { background: rgba(15, 23, 42, 0.85); }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900 dark:bg-dark-900 dark:text-dark-200 transition-colors duration-300 h-screen flex flex-col md:flex-row overflow-hidden font-sans">
+<body class="bg-gray-50 text-gray-900 dark:bg-dark-900 dark:text-dark-200 transition-colors duration-300">
+    <div id="root"></div>
 
-    <div id="app" class="flex w-full h-full"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
 
-    <div id="modal-layer" class="relative z-50"></div>
+        // --- ICONS ---
+        const Icon = ({ children, size=20, className="", fill="none" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>;
+        const ChevronLeft = p => <Icon {...p}><path d="m15 18-6-6 6-6"/></Icon>;
+        const ChevronRight = p => <Icon {...p}><path d="m9 18 6-6 6-6"/></Icon>;
+        const Check = p => <Icon {...p}><polyline points="20 6 9 17 4 12"/></Icon>;
+        const Star = p => <Icon {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></Icon>;
+        const Plus = p => <Icon {...p}><path d="M5 12h14"/><path d="M12 5v14"/></Icon>;
+        const Edit2 = p => <Icon {...p}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></Icon>;
+        const X = p => <Icon {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></Icon>;
+        const Cloud = p => <Icon {...p}><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M12 13.5V4"/><path d="m16 8-4-4-4 4"/></Icon>;
+        const Moon = p => <Icon {...p}><path d="M12 3a6 6 0 0 0 9 9 9 0 1 1-9-9Z"/></Icon>;
+        const Sun = p => <Icon {...p}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></Icon>;
+        const Clock = p => <Icon {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Icon>;
+        const Fire = p => <Icon {...p}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.1.2-2.2.5-3.3.3-1.4 1.8-2.7 3-3.2v-.5c0 1.5 0 2.5 0 2.5z"/></Icon>;
+        const Trophy = p => <Icon {...p}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></Icon>;
+        const ArrowUp = p => <Icon {...p}><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></Icon>;
+        const ArrowDown = p => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></Icon>;
+        const Sort = p => <Icon {...p}><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></Icon>;
+        const BarChart2 = p => <Icon {...p}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></Icon>;
+        const Grid = p => <Icon {...p}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></Icon>;
+        const CalendarIcon = p => <Icon {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Icon>;
+        const Cake = p => <Icon {...p}><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><path d="M2 21h20"/><path d="M7 8v2"/><path d="M12 8v2"/><path d="M17 8v2"/><path d="M7 4h.01"/><path d="M12 4h.01"/><path d="M17 4h.01"/></Icon>;
+        const Play = p => <Icon {...p}><polygon points="5 3 19 12 5 21 5 3"/></Icon>;
+        const Pause = p => <Icon {...p}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></Icon>;
+        const Settings = p => <Icon {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></Icon>;
+        const Archive = p => <Icon {...p}><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></Icon>;
+        const Download = p => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></Icon>;
+        const Upload = p => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></Icon>;
+        const Trash2 = p => <Icon {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></Icon>;
+        const RotateCcw = p => <Icon {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></Icon>;
+        const Database = p => <Icon {...p}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></Icon>;
 
-    <script>
-        /**
-         * HABIT OS - VANILLA JS ENGINE
-         * Zero dependencies. Pure Performance.
-         */
-
-        // --- ICONS (SVG Strings) ---
-        const ICONS = {
-            trophy: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>`,
-            settings: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`,
-            plus: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>`,
-            edit: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`,
-            left: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`,
-            right: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6 6-6"/></svg>`,
-            sun: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`,
-            moon: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 0 1 1-9-9Z"/></svg>`,
-            grid: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`,
-            chart: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
-            check: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
-            star: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
-            clock: `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-            fire: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.1.2-2.2.5-3.3.3-1.4 1.8-2.7 3-3.2v-.5c0 1.5 0 2.5 0 2.5z"/></svg>`,
-            x: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
-            play: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,
-            arrowUp: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`,
-            arrowDown: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`,
-            sort: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg>`
-        };
-
-        // --- STATE MANAGEMENT ---
-        const store = {
-            habits: [],
-            completions: {},
-            settings: { 
-                theme: 'light', 
-                vacationMode: false, 
-                userId: 'user_' + Math.random().toString(36).substr(2, 9) 
-            },
-            view: {
-                selectedDate: new Date(),
-                currentMonth: new Date(),
-                chartMode: 'heatmap', // 'heatmap' or 'bar'
-                sortMode: false,
-                editingHabit: null,
-                timerHabit: null,
-                settingsOpen: false
-            },
-            
-            init() {
-                const data = localStorage.getItem('habit_os_v1');
-                if (data) {
-                    const parsed = JSON.parse(data);
-                    this.habits = parsed.habits || [];
-                    this.completions = parsed.completions || {};
-                    this.settings = { ...this.settings, ...(parsed.settings || {}) };
-                }
-                this.applyTheme();
-                this.render();
-            },
-
-            save() {
-                localStorage.setItem('habit_os_v1', JSON.stringify({
-                    habits: this.habits,
-                    completions: this.completions,
-                    settings: this.settings
-                }));
-                this.render();
-            },
-
-            applyTheme() {
-                if (this.settings.theme === 'dark') document.documentElement.classList.add('dark');
-                else document.documentElement.classList.remove('dark');
-            }
-        };
-
+        // --- CONSTANTS ---
+        const COLORS = [
+            { name: 'Slate', bg: 'bg-slate-100', text: 'text-slate-600', bar: 'bg-slate-500', dot: 'bg-slate-500', darkBg: 'dark:bg-slate-800', darkText: 'dark:text-slate-300' },
+            { name: 'Red', bg: 'bg-red-100', text: 'text-red-600', bar: 'bg-red-500', dot: 'bg-red-500', darkBg: 'dark:bg-red-900/30', darkText: 'dark:text-red-400' },
+            { name: 'Orange', bg: 'bg-orange-100', text: 'text-orange-600', bar: 'bg-orange-500', dot: 'bg-orange-500', darkBg: 'dark:bg-orange-900/30', darkText: 'dark:text-orange-400' },
+            { name: 'Amber', bg: 'bg-amber-100', text: 'text-amber-600', bar: 'bg-amber-500', dot: 'bg-amber-500', darkBg: 'dark:bg-amber-900/30', darkText: 'dark:text-amber-400' },
+            { name: 'Yellow', bg: 'bg-yellow-100', text: 'text-yellow-600', bar: 'bg-yellow-500', dot: 'bg-yellow-500', darkBg: 'dark:bg-yellow-900/30', darkText: 'dark:text-yellow-400' },
+            { name: 'Lime', bg: 'bg-lime-100', text: 'text-lime-600', bar: 'bg-lime-500', dot: 'bg-lime-500', darkBg: 'dark:bg-lime-900/30', darkText: 'dark:text-lime-400' },
+            { name: 'Emerald', bg: 'bg-emerald-100', text: 'text-emerald-600', bar: 'bg-emerald-500', dot: 'bg-emerald-500', darkBg: 'dark:bg-emerald-900/30', darkText: 'dark:text-emerald-400' },
+            { name: 'Teal', bg: 'bg-teal-100', text: 'text-teal-600', bar: 'bg-teal-500', dot: 'bg-teal-500', darkBg: 'dark:bg-teal-900/30', darkText: 'dark:text-teal-400' },
+            { name: 'Cyan', bg: 'bg-cyan-100', text: 'text-cyan-600', bar: 'bg-cyan-500', dot: 'bg-cyan-500', darkBg: 'dark:bg-cyan-900/30', darkText: 'dark:text-cyan-400' },
+            { name: 'Sky', bg: 'bg-sky-100', text: 'text-sky-600', bar: 'bg-sky-500', dot: 'bg-sky-500', darkBg: 'dark:bg-sky-900/30', darkText: 'dark:text-sky-400' },
+            { name: 'Blue', bg: 'bg-blue-100', text: 'text-blue-600', bar: 'bg-blue-500', dot: 'bg-blue-500', darkBg: 'dark:bg-blue-900/30', darkText: 'dark:text-blue-400' },
+            { name: 'Indigo', bg: 'bg-indigo-100', text: 'text-indigo-600', bar: 'bg-indigo-500', dot: 'bg-indigo-500', darkBg: 'dark:bg-indigo-900/30', darkText: 'dark:text-indigo-400' },
+            { name: 'Violet', bg: 'bg-violet-100', text: 'text-violet-600', bar: 'bg-violet-500', dot: 'bg-violet-500', darkBg: 'dark:bg-violet-900/30', darkText: 'dark:text-violet-400' },
+            { name: 'Purple', bg: 'bg-purple-100', text: 'text-purple-600', bar: 'bg-purple-500', dot: 'bg-purple-500', darkBg: 'dark:bg-purple-900/30', darkText: 'dark:text-purple-400' },
+            { name: 'Fuchsia', bg: 'bg-fuchsia-100', text: 'text-fuchsia-600', bar: 'bg-fuchsia-500', dot: 'bg-fuchsia-500', darkBg: 'dark:bg-fuchsia-900/30', darkText: 'dark:text-fuchsia-400' },
+            { name: 'Rose', bg: 'bg-rose-100', text: 'text-rose-600', bar: 'bg-rose-500', dot: 'bg-rose-500', darkBg: 'dark:bg-rose-900/30', darkText: 'dark:text-rose-400' },
+        ];
+        const EMOJIS = ["✍️", "💪", "📚", "💧", "🧘", "🏃", "🙏", "📱", "🥦", "💊", "💰", "🧠", "🚭", "🎨", "🎸", "🧹", "🦷", "🐶", "🌿", "⏰", "💤", "🌞", "🎓", "💼", "🛒", "⚔️", "🔥", "💎", "✈️", "🚀", "🎵", "📷", "⚽", "🏀", "🥗", "🍳", "🍺", "🍷", "🏠", "🛁", "🎁", "❤️", "✨", "💡", "🔌", "🔧", "💊", "🧬", "🧸", "🚲", "🏖️", "🏔️", "👟", "👞", "💄", "🧴", "🧼", "📝", "📵", "🚭"];
+        const CATEGORIES = ['All', 'Health', 'Work', 'Social', 'Learning', 'General'];
+        const DAYS_OF_WEEK = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+        const formatDateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        const isSameDayMonth = (date1, date2) => date1.getDate() === date2.getDate() && date1.getMonth() === date2.getMonth();
+        
         // --- HELPERS ---
-        const formatDateKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        const isSameDayMonth = (d1, d2) => d1.getDate() === d2.getDate() && d1.getMonth() === d2.getMonth();
-        
-        const getDueHabits = (date) => {
-            const k = formatDateKey(date);
-            return store.habits.filter(h => {
-                if (h.archived) return false;
-                if (h.type === 'birthday' || h.type === 'event') return false; // Exclude non-tasks
-                if (h.type === 'task') return h.targetDate === k;
-                const freq = h.frequency || [0,1,2,3,4,5,6];
-                return h.type === 'habit' && freq.includes(date.getDay());
-            }).sort((a,b) => (a.order||0) - (b.order||0));
-        };
-
-        const calculateStats = (date) => {
-            const k = formatDateKey(date);
-            const due = getDueHabits(date);
-            const done = due.filter(h => store.completions[k]?.includes(h.id));
-            return { total: due.length, done: done.length, percent: due.length ? done.length / due.length : 0 };
-        };
-
-        // --- COMPONENTS (String Generators) ---
-        
-        function renderSidebar() {
-            const listHtml = store.habits.filter(h => (!h.type || h.type === 'habit') && !h.archived).map(h => {
-                let monthlyCount = 0;
-                const today = new Date();
-                const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-                for(let i=1; i<=daysInMonth; i++) {
-                    const d = new Date(today.getFullYear(), today.getMonth(), i);
-                    if(store.completions[formatDateKey(d)]?.includes(h.id)) monthlyCount++;
-                }
-                
-                let subContent = `<div class="flex items-center text-[10px] text-gray-400 gap-1">${ICONS.fire} Streak</div>`;
-                if(h.monthlyGoal) {
-                    const pct = Math.min((monthlyCount/h.monthlyGoal)*100, 100);
-                    subContent = `<div class="w-full bg-gray-200 dark:bg-dark-600 h-1.5 rounded-full mt-2"><div class="h-1.5 rounded-full ${h.color.replace('bg-','bg-')}" style="background-color:var(--color); width:${pct}%"></div></div>`;
-                }
-
-                return `
-                    <div onclick="openEdit('${h.id}')" class="group p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-700 border border-transparent hover:border-gray-100 dark:hover:border-dark-600 transition-all cursor-pointer">
-                        <div class="flex justify-between mb-1">
-                            <div class="flex gap-3"><span class="text-xl">${h.icon}</span><span class="text-sm font-medium dark:text-gray-200">${h.name}</span></div>
-                            <div class="opacity-0 group-hover:opacity-100 text-gray-400">${ICONS.edit}</div>
-                        </div>
-                        ${subContent}
-                    </div>
-                `;
-            }).join('');
-
-            return `
-                <div class="w-80 bg-white dark:bg-dark-800 border-r border-gray-200 dark:border-dark-700 hidden md:flex flex-col z-20">
-                    <div class="p-6 border-b border-gray-100 dark:border-dark-700 flex justify-between items-center">
-                        <div class="flex items-center gap-3"><div class="bg-indigo-600 text-white p-2 rounded-lg">${ICONS.trophy}</div><h1 class="font-bold text-lg dark:text-white">Habit OS</h1></div>
-                        <button onclick="openSettings()" class="text-gray-400 hover:text-indigo-500">${ICONS.settings}</button>
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin">
-                        <div class="flex justify-between items-end mb-2 px-2"><h2 class="text-xs font-bold text-gray-400 uppercase">Habits</h2><button onclick="openEdit(null)" class="text-indigo-600 bg-indigo-50 p-1 rounded">${ICONS.plus}</button></div>
-                        ${listHtml}
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderCalendar() {
-            const y = store.view.currentMonth.getFullYear();
-            const m = store.view.currentMonth.getMonth();
-            const firstDay = new Date(y, m, 1).getDay();
-            const daysInMonth = new Date(y, m + 1, 0).getDate();
-            const monthName = store.view.currentMonth.toLocaleString('default', { month: 'long' });
-
-            let gridHtml = '';
-            for(let i=0; i<firstDay; i++) gridHtml += `<div class="bg-gray-50/30 dark:bg-dark-900 border-b border-r border-gray-100 dark:border-dark-700 h-24"></div>`;
-            
-            for(let d=1; d<=daysInMonth; d++) {
-                const date = new Date(y, m, d);
-                const k = formatDateKey(date);
-                const isSel = k === formatDateKey(store.view.selectedDate);
-                const isToday = k === formatDateKey(new Date());
-                const stats = calculateStats(date);
-                
-                // Dots for events/birthdays
-                let dots = '';
-                store.habits.forEach(h => {
-                    if(h.type === 'birthday' && isSameDayMonth(new Date(h.targetDate), date)) dots += `<div class="w-1.5 h-1.5 rounded-full bg-pink-400"></div>`;
-                    if(h.type === 'event' && h.targetDate === k) dots += `<div class="w-1.5 h-1.5 rounded-full bg-blue-400"></div>`;
-                });
-
-                // Completion Bar (if past)
-                let bar = '';
-                if(stats.total > 0 && date <= new Date()) {
-                    let color = stats.percent === 1 ? 'bg-emerald-400' : stats.percent > 0.5 ? 'bg-orange-400' : 'bg-gray-300';
-                    bar = `<div class="w-full h-1 mt-1 rounded-full bg-gray-100 dark:bg-dark-800 overflow-hidden"><div class="h-full ${color}" style="width:${stats.percent*100}%"></div></div>`;
-                }
-
-                gridHtml += `
-                    <div onclick="selectDate('${k}')" class="h-24 p-2 border-b border-r border-gray-100 dark:border-dark-700 cursor-pointer relative transition-colors ${isSel ? 'bg-indigo-50/60 dark:bg-indigo-900/20' : 'hover:bg-gray-50 dark:hover:bg-dark-800'}">
-                        <div class="flex justify-between items-center">
-                            <span class="w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${isToday ? 'bg-indigo-600 text-white' : isSel ? 'text-indigo-600' : 'text-gray-500'}">${d}</span>
-                            <div class="flex gap-0.5">${dots}</div>
-                        </div>
-                        ${bar}
-                    </div>
-                `;
+        const calculateStreak = (habitId, completions, vacationMode) => {
+            let streak = 0; const today = new Date();
+            for (let i = 0; i < 365; i++) {
+                const d = new Date(); d.setDate(today.getDate() - i);
+                const k = formatDateKey(d);
+                if (completions[k]?.includes(habitId)) streak++; 
+                else if (vacationMode) continue; 
+                else if (i > 0) break;
             }
+            return streak;
+        };
 
-            return `
-                <div class="flex-1 flex flex-col bg-white dark:bg-dark-900 h-[50%] md:h-full relative overflow-hidden">
-                    <div class="glass px-6 py-4 flex justify-between items-center border-b border-gray-100 dark:border-dark-700 z-30">
-                        <div class="flex items-center gap-4">
-                            <h2 class="text-xl font-bold dark:text-white">${monthName} ${y}</h2>
-                            <div class="flex bg-gray-100 dark:bg-dark-800 rounded p-1">
-                                <button onclick="changeMonth(-1)" class="p-1 hover:bg-white dark:hover:bg-dark-700 rounded shadow-sm">${ICONS.left}</button>
-                                <button onclick="changeMonth(1)" class="p-1 hover:bg-white dark:hover:bg-dark-700 rounded shadow-sm">${ICONS.right}</button>
-                            </div>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="toggleTheme()" class="p-2 text-gray-400 hover:text-indigo-500">${store.settings.theme==='dark' ? ICONS.sun : ICONS.moon}</button>
-                            <button onclick="selectDate('${formatDateKey(new Date())}')" class="text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 px-3 py-1.5 rounded-full">Today</button>
-                        </div>
-                    </div>
-                    
-                    <div class="flex-1 overflow-auto">
-                        <div class="grid grid-cols-7 border-b border-gray-100 dark:border-dark-700 bg-gray-50 dark:bg-dark-900 text-center py-2 text-xs font-bold text-gray-400 uppercase">
-                            <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
-                        </div>
-                        <div class="grid grid-cols-7 auto-rows-fr">
-                            ${gridHtml}
-                        </div>
-                    </div>
+        const MiniProgressBar = ({ value, max, colorClass }) => {
+            const percentage = max > 0 ? Math.min((value / max) * 100, 100) : 0;
+            return (<div className="w-full bg-gray-100 dark:bg-dark-700 rounded-full h-1.5 mt-3 overflow-hidden"><div className={`h-1.5 rounded-full transition-all duration-500 ease-out ${colorClass}`} style={{ width: `${percentage}%` }}></div></div>);
+        };
 
-                    <div class="h-40 bg-white dark:bg-dark-900 border-t border-gray-100 dark:border-dark-700 p-4 flex flex-col">
-                        <div class="flex justify-between mb-2">
-                            <h3 class="text-xs font-bold text-gray-500 uppercase">Productivity (Habits + Tasks)</h3>
-                            <div class="flex bg-gray-100 dark:bg-dark-800 rounded p-0.5">
-                                <button onclick="setChart('bar')" class="p-1 rounded ${store.view.chartMode==='bar'?'bg-white shadow text-indigo-500':'text-gray-400'}">${ICONS.chart}</button>
-                                <button onclick="setChart('heatmap')" class="p-1 rounded ${store.view.chartMode==='heatmap'?'bg-white shadow text-indigo-500':'text-gray-400'}">${ICONS.grid}</button>
-                            </div>
-                        </div>
-                        <div class="flex-1 overflow-x-auto scrollbar-thin flex items-end gap-1 pb-1">
-                            ${renderChart()}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
+        // --- CHARTS (Precision Logic) ---
+        const isHabitDueOnDate = (h, date, dateKey) => {
+            if (h.type === 'birthday' || h.type === 'event') return false; 
+            if (h.type === 'task') return h.targetDate === dateKey; 
+            const freq = h.frequency || [0,1,2,3,4,5,6];
+            if (h.type === 'habit' && !freq.includes(date.getDay())) return false;
+            return true; 
+        };
 
-        function renderChart() {
-            // Data logic: Past 30 days
-            const days = 30;
-            let html = '';
-            const today = new Date();
-            
-            if (store.view.chartMode === 'bar') {
-                for(let i=days-1; i>=0; i--) {
-                    const d = new Date(); d.setDate(today.getDate() - i);
-                    const stats = calculateStats(d);
-                    const h = Math.max(stats.percent * 100, 0);
-                    const color = h === 100 ? 'bg-emerald-400' : h >= 50 ? 'bg-orange-400' : 'bg-gray-300 dark:bg-dark-700';
-                    
-                    html += `
-                        <div class="flex flex-col items-center w-6 flex-shrink-0 h-full justify-end">
-                            <div class="w-full bg-gray-50 dark:bg-dark-800 rounded-t-sm h-full flex items-end overflow-hidden">
-                                <div class="w-full ${color} transition-all duration-500" style="height:${h}%"></div>
-                            </div>
-                        </div>
-                    `;
-                }
-            } else {
-                // Year Heatmap Logic
-                // Simplified for vanilla: last 52 weeks
-                for(let w=0; w<20; w++) { // limit to 20 weeks for mobile perf
-                    html += `<div class="flex flex-col gap-1">`;
-                    for(let d=0; d<7; d++) {
-                        // Dummy logic for layout - connecting to real data needs loops
-                        html += `<div class="w-3 h-3 rounded-sm bg-gray-100 dark:bg-dark-800"></div>`;
+        const YearHeatmap = ({ completions, habits }) => {
+            const heatmapRef = useRef(null);
+            useEffect(() => { if (heatmapRef.current) heatmapRef.current.scrollLeft = heatmapRef.current.scrollWidth; }, [habits]);
+            const data = useMemo(() => {
+                const weeks = 52; const grid = []; const today = new Date();
+                const dayOfWeek = today.getDay(); const endDate = new Date(today); endDate.setDate(today.getDate() + (6 - dayOfWeek));
+                for (let w = weeks - 1; w >= 0; w--) {
+                    const weekData = [];
+                    for (let d = 0; d < 7; d++) {
+                        const date = new Date(endDate); date.setDate(endDate.getDate() - (w * 7) - (6 - d));
+                        const k = formatDateKey(date);
+                        const dueHabits = habits.filter(h => !h.archived && isHabitDueOnDate(h, date, k));
+                        const completedCount = (completions[k] || []).filter(id => habits.some(h => h.id === id && isHabitDueOnDate(h, date, k))).length;
+                        const total = dueHabits.length;
+                        const val = total === 0 ? 0 : (completedCount / total);
+                        weekData.push({ date: date, key: k, val: val, isFuture: date > new Date() });
                     }
-                    html += `</div>`;
+                    grid.unshift(weekData);
                 }
-                // (Note: Full Heatmap omitted in this vanilla snippet to save space, Bar chart is main)
-            }
-            return html;
-        }
+                return grid;
+            }, [completions, habits]);
+            return (
+                <div ref={heatmapRef} className="h-full w-full overflow-x-auto overflow-y-hidden pb-1 scrollbar-thin flex flex-col justify-center">
+                    <div className="flex gap-[3px] min-w-max px-2">{data.map((week, wIndex) => (<div key={wIndex} className="flex flex-col gap-[3px]">{week.map((day) => (<div key={day.key} title={`${day.key}: ${Math.round(day.val * 100)}%`} className={`w-[10px] h-[10px] md:w-[12px] md:h-[12px] rounded-[2px] transition-colors ${day.isFuture ? 'bg-transparent' : day.val === 0 ? 'bg-gray-100 dark:bg-dark-700' : day.val >= 1 ? 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]' : day.val >= 0.7 ? 'bg-emerald-400' : day.val >= 0.4 ? 'bg-emerald-300' : 'bg-emerald-200 dark:bg-emerald-900'}`}></div>))}</div>))}</div>
+                </div>
+            );
+        };
 
-        function renderAgenda() {
-            const date = store.view.selectedDate;
-            const dateKey = formatDateKey(date);
-            const isToday = dateKey === formatDateKey(new Date());
+        const ConsistencyChart = ({ completions, habits }) => {
+            const data = useMemo(() => {
+                const days = 30; const result = []; const today = new Date();
+                for (let i = days - 1; i >= 0; i--) {
+                    const d = new Date(); d.setDate(today.getDate() - i); const dateKey = formatDateKey(d);
+                    const dueHabits = habits.filter(h => !h.archived && isHabitDueOnDate(h, d, dateKey));
+                    const completedCount = (completions[dateKey] || []).filter(id => habits.some(h => h.id === id && isHabitDueOnDate(h, d, dateKey))).length;
+                    const totalDue = dueHabits.length;
+                    const value = totalDue === 0 ? 0 : (completedCount / totalDue);
+                    result.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, fullDate: d.toLocaleDateString(), value: value });
+                }
+                return result;
+            }, [completions, habits]);
+            return (
+                <div className="h-full w-full overflow-x-auto pb-1 scrollbar-thin">
+                    <div className="flex items-end h-full gap-2 min-w-max px-1">{data.map((d, i) => (
+                        <div key={i} className="flex flex-col items-center w-6 flex-shrink-0 h-full justify-end group">
+                            <div className="w-full h-full flex items-end relative bg-gray-50 dark:bg-dark-800 rounded-md overflow-hidden">
+                                <div className={`w-full rounded-b-md rounded-t-sm transition-all duration-500 ${d.value >= 1 ? 'bg-emerald-500' : d.value >= 0.8 ? 'bg-blue-400' : d.value >= 0.5 ? 'bg-orange-400' : d.value > 0 ? 'bg-gray-400' : 'bg-transparent'}`} style={{ height: `${Math.min(d.value * 100, 100)}%` }}></div>
+                            </div>
+                            <span className="text-[9px] text-gray-400 mt-1.5 font-medium whitespace-nowrap">{d.label}</span>
+                        </div>
+                    ))}</div>
+                </div>
+            );
+        };
+
+        // --- COMPONENTS ---
+        const FocusTimer = ({ habit, onClose, onComplete }) => {
+            const [timeLeft, setTimeLeft] = useState(25 * 60);
+            const [isActive, setIsActive] = useState(false);
+            const formatTime = (seconds) => { const m = Math.floor(seconds / 60); const s = seconds % 60; return `${m}:${s < 10 ? '0' : ''}${s}`; };
+            useEffect(() => {
+                let interval = null;
+                if (isActive && timeLeft > 0) interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
+                else if (timeLeft === 0) { setIsActive(false); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); }
+                return () => clearInterval(interval);
+            }, [isActive, timeLeft]);
+            return (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-dark-900 text-white modal-animate">
+                    <button onClick={onClose} className="absolute top-6 right-6 p-2 text-gray-400 hover:text-white"><X size={32}/></button>
+                    <div className="flex flex-col items-center gap-8">
+                        <div className="text-xl font-medium text-indigo-400 flex items-center gap-2">{habit.icon} {habit.name}</div>
+                        <div className="text-9xl font-bold font-mono tracking-tighter tabular-nums">{formatTime(timeLeft)}</div>
+                        <div className="flex gap-6">
+                            <button onClick={() => setIsActive(!isActive)} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${isActive ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>{isActive ? <Pause size={32} /> : <Play size={32} className="ml-1"/>}</button>
+                        </div>
+                        {timeLeft === 0 && <button onClick={onComplete} className="px-8 py-3 bg-white text-dark-900 font-bold rounded-full animate-bounce">Complete Task</button>}
+                    </div>
+                </div>
+            );
+        };
+
+        const SettingsModal = ({ isOpen, onClose, onImport, onExport, vacationMode, setVacationMode, onReset }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl w-full max-w-sm modal-animate overflow-hidden max-h-[90vh] overflow-y-auto">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-dark-700 flex justify-between items-center"><h3 className="font-bold text-gray-800 dark:text-gray-100">Settings</h3><button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button></div>
+                        <div className="p-6 space-y-6">
+                            {/* Vacation Mode */}
+                            <div className="flex items-center justify-between">
+                                <div><h4 className="text-sm font-bold dark:text-gray-200">Vacation Mode ✈️</h4><p className="text-[10px] text-gray-400">Pause streaks while away.</p></div>
+                                <div onClick={() => setVacationMode(!vacationMode)} className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer ${vacationMode ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-dark-600'}`}><div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${vacationMode ? 'translate-x-5' : ''}`}></div></div>
+                            </div>
+
+                            {/* Data Management */}
+                            <div>
+                                <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Data & Backup</h4>
+                                <div className="space-y-3">
+                                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-900/30 flex items-center gap-3">
+                                        <Database size={18} className="text-indigo-500"/>
+                                        <div className="flex-1"><p className="text-[10px] text-indigo-500 font-bold uppercase">Storage</p><p className="text-xs text-indigo-700 dark:text-indigo-300">Data saved locally.</p></div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={onExport} className="flex-1 py-2 bg-gray-50 dark:bg-dark-700 text-gray-600 dark:text-gray-300 rounded-lg text-xs font-bold flex items-center justify-center gap-2"><Download size={14}/> Export</button>
+                                        <label className="flex-1 py-2 bg-gray-50 dark:bg-dark-700 text-gray-600 dark:text-gray-300 rounded-lg text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"><Upload size={14}/> Import<input type="file" onChange={onImport} className="hidden" accept=".json"/></label>
+                                    </div>
+                                    <button onClick={onReset} className="w-full py-2 text-xs text-red-400 hover:text-red-500">Reset App Data</button>
+                                </div>
+                            </div>
+                            
+                            {/* Archive Link */}
+                            <button className="w-full py-3 border border-gray-200 dark:border-dark-700 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-400 flex items-center justify-center gap-2"><Archive size={16}/> View Archived Habits</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const HabitModal = ({ isOpen, onClose, onSave, initialData, onDelete }) => {
+            const [name, setName] = useState('');
+            const [icon, setIcon] = useState(EMOJIS[0]);
+            const [color, setColor] = useState(COLORS[0]);
+            const [type, setType] = useState('habit');
+            const [category, setCategory] = useState('General');
+            const [difficulty, setDifficulty] = useState('easy');
+            const [useTimer, setUseTimer] = useState(false);
+            const [monthlyGoal, setMonthlyGoal] = useState('');
+            const [time, setTime] = useState('');
+            const [frequency, setFrequency] = useState([0,1,2,3,4,5,6]); 
+            const [targetDate, setTargetDate] = useState(formatDateKey(new Date()));
+
+            useEffect(() => {
+                if (isOpen) {
+                    if (initialData) {
+                        setName(initialData.name); setIcon(initialData.icon); setColor(initialData.color);
+                        if(initialData.type) setType(initialData.type); else setType(initialData.isTask ? 'task' : 'habit');
+                        setCategory(initialData.category || 'General'); setDifficulty(initialData.difficulty || 'easy');
+                        setUseTimer(!!initialData.useTimer); setMonthlyGoal(initialData.monthlyGoal || '');
+                        setTime(initialData.time || ''); 
+                        setFrequency(initialData.frequency || [0,1,2,3,4,5,6]); setTargetDate(initialData.targetDate || formatDateKey(new Date()));
+                    } else {
+                        setName(''); setIcon(EMOJIS[0]); setColor(COLORS[11]); setType('habit'); setCategory('General'); setDifficulty('easy'); setUseTimer(false); setMonthlyGoal(''); setTime(''); setFrequency([0,1,2,3,4,5,6]);
+                    }
+                }
+            }, [isOpen, initialData]);
+
+            const toggleDay = (dayIndex) => { if (frequency.includes(dayIndex)) setFrequency(frequency.filter(d => d !== dayIndex)); else setFrequency([...frequency, dayIndex].sort()); };
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl w-full max-w-sm modal-animate overflow-hidden max-h-[90vh] overflow-y-auto">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-dark-700 flex justify-between items-center"><h3 className="font-bold text-gray-800 dark:text-gray-100">{initialData ? 'Edit' : 'New'}</h3><button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button></div>
+                        <form onSubmit={(e) => { e.preventDefault(); onSave({ id: initialData?.id, name, icon, color, type, category, difficulty, useTimer, monthlyGoal: parseInt(monthlyGoal) || 0, time, frequency, targetDate }); onClose(); }} className="p-6 space-y-5">
+                            {/* Type Selector */}
+                            <div className="grid grid-cols-4 gap-1 bg-gray-100 dark:bg-dark-900 p-1 rounded-lg">
+                                {['habit', 'task', 'event', 'birthday'].map(t => (<button key={t} type="button" onClick={() => setType(t)} className={`py-2 rounded-md text-[10px] font-bold uppercase transition-all ${type === t ? 'bg-white dark:bg-dark-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`}>{t === 'habit' ? 'Routine' : t}</button>))}
+                            </div>
+                            
+                            <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Name</label><input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-white" /></div>
+                            
+                            {/* Category */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Category</label>
+                                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin flex gap-1">
+                                    {CATEGORIES.slice(1).map(c => (<button key={c} type="button" onClick={() => setCategory(c)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border whitespace-nowrap ${category === c ? 'bg-indigo-100 border-indigo-500 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' : 'border-gray-200 dark:border-dark-700 text-gray-500'}`}>{c}</button>))}
+                                </div>
+                            </div>
+
+                            {(type === 'habit' || type === 'task') && (
+                            <div className="space-y-4">
+                                <div className="flex gap-2">{['easy', 'medium', 'hard'].map(d => (<button key={d} type="button" onClick={() => setDifficulty(d)} className={`flex-1 py-2 rounded-lg text-xs font-bold border capitalize transition-all ${difficulty === d ? d==='hard' ? 'bg-yellow-50 border-yellow-500 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400' : 'bg-indigo-50 border-indigo-500 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' : 'border-gray-200 dark:border-dark-700 text-gray-400'}`}>{d==='hard'?'Heroic':d}</button>))}</div>
+                                <div className="flex gap-3">
+                                    <div className="flex-1"><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Monthly Goal</label><input type="number" placeholder="Optional" value={monthlyGoal} onChange={e => setMonthlyGoal(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none text-sm dark:text-white" /></div>
+                                    <div className="flex-1 flex items-end"><div onClick={() => setUseTimer(!useTimer)} className={`w-full flex items-center justify-center p-3 rounded-xl border cursor-pointer transition-colors ${useTimer ? 'bg-indigo-50 border-indigo-500 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' : 'bg-gray-50 border-gray-200 dark:bg-dark-900 text-gray-500'}`}><div className="flex items-center gap-2"><Clock size={16} /><span className="text-xs font-bold">Timer</span></div></div></div>
+                                </div>
+                            </div>
+                            )}
+
+                            <div className="flex gap-3">
+                                <div className="flex-1"><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Time</label><input type="time" value={time} onChange={e => setTime(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none text-sm dark:text-white" /></div>
+                                {(type !== 'habit') && <div className="flex-1"><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Date</label><input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none text-sm dark:text-white" /></div>}
+                            </div>
+                            
+                            {type === 'habit' && (<div><label className="block text-xs font-bold text-gray-400 uppercase mb-2">Frequency</label><div className="flex justify-between">{DAYS_OF_WEEK.map((d, i) => (<button key={i} type="button" onClick={() => toggleDay(i)} className={`w-8 h-8 rounded-full text-xs font-bold transition-all ${frequency.includes(i) ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 dark:bg-dark-700 text-gray-400'}`}>{d}</button>))}</div></div>)}
+                            
+                            <div className="flex justify-between items-center pt-2">
+                                {initialData && <div className="flex gap-2"><button type="button" onClick={() => { onDelete(initialData.id); onClose(); }} className="p-3 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-xl"><Trash2 size={18}/></button><button type="button" onClick={() => { onSave({...initialData, archived: !initialData.archived}); onClose(); }} className="p-3 text-gray-500 bg-gray-100 dark:bg-dark-700 rounded-xl" title="Archive"><Archive size={18}/></button></div>}
+                                <button type="submit" className="flex-1 ml-3 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const NoteModal = ({ isOpen, onClose, habit, streak, notes, onSaveNote }) => {
+            const [note, setNote] = useState('');
+            useEffect(() => { if (isOpen && notes) setNote(notes || ''); }, [isOpen, notes]);
+            if (!isOpen || !habit) return null;
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-2xl w-full max-w-sm modal-animate p-6">
+                        <div className="flex justify-between items-start mb-4"><div><div className="text-3xl mb-1">{habit.icon}</div><h2 className="text-xl font-bold dark:text-white">{habit.name}</h2></div></div>
+                        <textarea placeholder="Add details..." value={note} onChange={e => setNote(e.target.value)} className="w-full h-32 p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-gray-200 mb-4" />
+                        <div className="flex gap-3"><button onClick={onClose} className="flex-1 py-3 text-gray-500 font-bold">Cancel</button><button onClick={() => { onSaveNote(habit.id, note); onClose(); }} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Save</button></div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            // Local Storage Initialization
+            const [habits, setHabits] = useState([]);
+            const [completions, setCompletions] = useState({});
+            const [dailyNotes, setDailyNotes] = useState({});
+            const [vacationMode, setVacationMode] = useState(false);
+            const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+            const [status, setStatus] = useState('local'); // Always local
+            const [currentDate, setCurrentDate] = useState(new Date());
+            const [selectedDate, setSelectedDate] = useState(new Date());
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+            const [editingHabit, setEditingHabit] = useState(null);
+            const [detailHabit, setDetailHabit] = useState(null);
+            const [isReorderMode, setIsReorderMode] = useState(false);
+            const [chartMode, setChartMode] = useState('heatmap');
+            const [selectedCategory, setSelectedCategory] = useState('All');
+            const [activeFocusHabit, setActiveFocusHabit] = useState(null);
+
+            // Load Data from Local Storage
+            useEffect(() => {
+                const loadedData = localStorage.getItem('habit_os_data');
+                if (loadedData) {
+                    try {
+                        const parsed = JSON.parse(loadedData);
+                        setHabits(parsed.habits || []);
+                        setCompletions(parsed.completions || {});
+                        setDailyNotes(parsed.dailyNotes || {});
+                        setVacationMode(parsed.vacationMode || false);
+                    } catch (e) { console.error("Load error", e); }
+                }
+            }, []);
+
+            // Save Data to Local Storage whenever state changes
+            useEffect(() => {
+                const dataToSave = { habits, completions, dailyNotes, vacationMode };
+                localStorage.setItem('habit_os_data', JSON.stringify(dataToSave));
+            }, [habits, completions, dailyNotes, vacationMode]);
+
+            useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
+
+            const saveData = (newHabits, newCompletions, newNotes, newVacationMode) => {
+                setHabits(newHabits); setCompletions(newCompletions); setDailyNotes(newNotes); setVacationMode(newVacationMode);
+            };
+
+            const handleSaveHabit = (habit) => { 
+                const newHabits = habit.id && habits.some(h => h.id === habit.id) ? habits.map(h => h.id === habit.id ? habit : h) : [...habits, { ...habit, id: Date.now().toString(), order: habits.length }]; 
+                saveData(newHabits, completions, dailyNotes, vacationMode); 
+            };
+            const handleDeleteHabit = (id) => saveData(habits.filter(h => h.id !== id), completions, dailyNotes, vacationMode);
+            const handleSaveNote = (habitId, text) => { const key = `${habitId}_${formatDateKey(selectedDate)}`; const newNotes = { ...dailyNotes, [key]: text }; saveData(habits, completions, newNotes, vacationMode); };
+            const toggleHabit = (id, dateKey) => { const current = completions[dateKey] || []; const newC = { ...completions, [dateKey]: current.includes(id) ? current.filter(x => x !== id) : [...current, id] }; saveData(habits, newC, dailyNotes, vacationMode); };
             
-            // Get items for today
-            const allItems = store.habits.filter(h => {
-                if(h.archived) return false;
-                if(h.type === 'birthday') return isSameDayMonth(new Date(h.targetDate), date);
-                if(h.type === 'task' || h.type === 'event') return h.targetDate === dateKey;
-                // Habit frequency
+            const moveHabit = (id, direction) => {
+                const index = habits.findIndex(h => h.id === id);
+                if (index < 0) return;
+                const newHabits = [...habits];
+                const targetIndex = index + direction;
+                if (targetIndex >= 0 && targetIndex < newHabits.length) {
+                    const temp = newHabits[index].order || index;
+                    newHabits[index].order = newHabits[targetIndex].order || targetIndex;
+                    newHabits[targetIndex].order = temp;
+                    [newHabits[index], newHabits[targetIndex]] = [newHabits[targetIndex], newHabits[index]];
+                    saveData(newHabits, completions, dailyNotes, vacationMode);
+                }
+            };
+
+            // Rollover Logic
+            const getRolloverCount = () => {
+                const todayStr = formatDateKey(new Date());
+                return habits.filter(h => h.type === 'task' && !h.archived && h.targetDate < todayStr && !completions[h.targetDate]?.includes(h.id)).length;
+            };
+            const executeRollover = () => {
+                const todayStr = formatDateKey(new Date());
+                const newHabits = habits.map(h => {
+                    if(h.type === 'task' && !h.archived && h.targetDate < todayStr && !completions[h.targetDate]?.includes(h.id)) {
+                        return { ...h, targetDate: todayStr };
+                    }
+                    return h;
+                });
+                saveData(newHabits, completions, dailyNotes, vacationMode);
+                alert("Tasks moved to today!");
+            };
+
+            // Data Export/Import
+            const handleExport = () => {
+                const data = JSON.stringify({ habits, completions, dailyNotes, vacationMode });
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = 'habit-os-backup.json'; a.click();
+            };
+            const handleImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const parsed = JSON.parse(event.target.result);
+                        if(parsed.habits) {
+                            saveData(parsed.habits, parsed.completions || {}, parsed.dailyNotes || {}, parsed.vacationMode || false);
+                            alert("Data imported successfully!");
+                        }
+                    } catch(err) { alert("Invalid file"); }
+                };
+                reader.readAsText(file);
+            };
+            
+            const handleReset = () => {
+                if(confirm("Are you sure? This will delete all data.")) {
+                    localStorage.removeItem('habit_os_data');
+                    window.location.reload();
+                }
+            }
+
+            const year = currentDate.getFullYear(); const month = currentDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay();
+            const selectedDateKey = formatDateKey(selectedDate); const todayKey = formatDateKey(new Date());
+
+            const getMonthCompletionCount = (habitId) => {
+                let count = 0;
+                for(let d=1; d<=daysInMonth; d++) {
+                    const k = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    if(completions[k]?.includes(habitId)) count++;
+                }
+                return count;
+            };
+            
+            const visibleCategories = useMemo(() => {
+                const active = new Set(habits.filter(h => !h.archived).map(h => h.category || 'General'));
+                return ['All', ...CATEGORIES.slice(1).filter(c => active.has(c))];
+            }, [habits]);
+
+            const todaysHabits = habits.filter(h => {
+                if (h.archived) return false;
+                
+                // Regular Schedule Logic
+                const type = h.type || (h.isTask ? 'task' : 'habit');
+                const catMatch = selectedCategory === 'All' || (h.category === selectedCategory) || (!h.category && selectedCategory === 'General');
+                if (!catMatch) return false;
+                
+                if (type === 'birthday') return isSameDayMonth(new Date(h.targetDate), selectedDate);
+                if (type === 'task' || type === 'event') return h.targetDate === selectedDateKey;
                 const freq = h.frequency || [0,1,2,3,4,5,6];
-                if(h.type === 'habit' && !freq.includes(date.getDay())) return false;
+                if (type === 'habit' && !freq.includes(selectedDate.getDay())) return false;
                 return true;
+            }).sort((a, b) => {
+                if (a.order !== undefined && b.order !== undefined) return a.order - b.order;
+                if (a.time && !b.time) return -1; if (!a.time && b.time) return 1; if (a.time && b.time) return a.time.localeCompare(b.time); return 0;
             });
 
-            // Sorting
-            if (!store.view.sortMode) {
-                allItems.sort((a,b) => (a.time || '23:59').localeCompare(b.time || '23:59'));
-            } else {
-                allItems.sort((a,b) => (a.order||0) - (b.order||0));
-            }
+            const getIndicators = (date) => {
+                const k = formatDateKey(date); const dots = [];
+                habits.forEach(h => {
+                    if (h.archived) return;
+                    const type = h.type || (h.isTask ? 'task' : 'habit');
+                    let showDot = false; let color = 'bg-gray-300';
+                    if (type === 'birthday' && isSameDayMonth(new Date(h.targetDate), date)) { showDot = true; color = 'bg-pink-400'; }
+                    else if (type === 'event' && h.targetDate === k) { showDot = true; color = 'bg-blue-400'; }
+                    else if (type === 'task' && h.targetDate === k) { showDot = true; color = 'bg-gray-400'; }
+                    if (showDot) dots.push(color);
+                });
+                return dots.slice(0, 3);
+            };
 
-            const listHtml = allItems.length === 0 ? 
-                `<div class="text-center py-10 text-gray-400">Nothing scheduled.</div>` :
-                allItems.map(h => {
-                    const isDone = store.completions[dateKey]?.includes(h.id);
-                    const isHeroic = h.difficulty === 'hard';
-                    const isEvent = h.type === 'event' || h.type === 'birthday';
-                    
-                    // Colors & Visuals
-                    let border = 'border-gray-200 dark:border-dark-700';
-                    let bg = 'bg-white dark:bg-dark-700';
-                    let icon = ICONS.check;
-                    let checkColor = isDone ? 'bg-emerald-500 text-white' : 'bg-gray-100 dark:bg-dark-800 text-transparent';
-
-                    if (isHeroic) {
-                        border = 'border-amber-300';
-                        icon = ICONS.star;
-                        if(isDone) checkColor = 'bg-amber-400 text-white';
+            useEffect(() => {
+                if (todaysHabits.length > 0 && selectedDateKey === todayKey) {
+                    const checkables = todaysHabits.filter(h => { const t = h.type || (h.isTask ? 'task' : 'habit'); return t === 'habit' || t === 'task'; });
+                    if(checkables.length > 0) {
+                        const completedCount = checkables.filter(h => completions[selectedDateKey]?.includes(h.id)).length;
+                        if (completedCount === checkables.length) { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
                     }
-                    if (h.type === 'birthday') {
-                        border = 'border-pink-300 bg-pink-50 dark:bg-pink-900/10';
-                        icon = ICONS.cake;
-                        checkColor = 'bg-pink-400 text-white';
-                    }
-                    if (h.type === 'event') {
-                        border = 'border-blue-300 bg-blue-50 dark:bg-blue-900/10';
-                        icon = ICONS.clock; // Using clock as calendar placeholder
-                        checkColor = 'bg-blue-400 text-white';
-                    }
-
-                    if (isDone) {
-                        bg = 'opacity-60';
-                    }
-
-                    // Interactive elements
-                    let actions = '';
-                    if (store.view.sortMode) {
-                        actions = `
-                            <div class="flex flex-col text-gray-400">
-                                <button onclick="moveItem('${h.id}', -1)">${ICONS.arrowUp}</button>
-                                <button onclick="moveItem('${h.id}', 1)">${ICONS.arrowDown}</button>
-                            </div>
-                        `;
-                    } else if (h.useTimer && !isDone && !isEvent) {
-                        actions = `<button onclick="startTimer('${h.id}')" class="text-gray-400 hover:text-indigo-500">${ICONS.play}</button>`;
-                    }
-
-                    return `
-                        <div onclick="toggleCheck('${h.id}')" class="flex items-center p-3 mb-3 rounded-xl border ${border} ${bg} transition-all cursor-pointer select-none">
-                            ${!store.view.sortMode ? `<div class="w-6 h-6 rounded-lg mr-3 flex items-center justify-center ${checkColor}">${icon}</div>` : ''}
-                            <div class="flex-1">
-                                <div class="flex justify-between items-center">
-                                    <div class="flex gap-2 font-bold text-sm ${isDone ? 'line-through text-gray-400' : 'dark:text-white'}"><span>${h.icon}</span> ${h.name}</div>
-                                    ${isHeroic ? '<span class="text-[9px] bg-amber-400 text-white px-1 rounded">HEROIC</span>' : ''}
-                                </div>
-                                <div class="text-xs text-gray-400 flex gap-2 mt-1">
-                                    ${h.time ? `<span class="bg-gray-100 dark:bg-dark-600 px-1 rounded">${h.time}</span>` : ''}
-                                    ${h.type === 'task' ? '<span>TASK</span>' : ''}
-                                </div>
-                            </div>
-                            ${actions}
-                        </div>
-                    `;
-                }).join('');
-
-            return `
-                <div class="w-full md:w-96 bg-gray-50 dark:bg-dark-800/50 border-l border-gray-200 dark:border-dark-700 flex flex-col z-20 h-[50%] md:h-full">
-                    <div class="p-6 border-b border-gray-200/50 dark:border-dark-700 flex justify-between items-center sticky top-0 bg-white/50 dark:bg-dark-800/50 backdrop-blur-md">
-                        <div>
-                            <h2 class="text-xl font-bold dark:text-white">${date.toLocaleDateString('en-US', {weekday:'long'})}</h2>
-                            <p class="text-xs text-gray-500">${date.toLocaleDateString('en-US', {month:'long', day:'numeric'})}</p>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="toggleSort()" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-dark-700 ${store.view.sortMode?'text-indigo-500':'text-gray-400'}">${ICONS.sort}</button>
-                            <button onclick="openEdit(null)" class="bg-indigo-600 text-white p-2 rounded-lg md:hidden">${ICONS.plus}</button>
-                        </div>
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-4 scrollbar-thin">
-                        ${listHtml}
-                    </div>
-                    <div class="p-4 border-t border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 hidden md:block">
-                        <button onclick="openEdit(null)" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg transform transition hover:-translate-y-0.5">+ Add Item</button>
-                    </div>
-                </div>
-            `;
-        }
-
-        // --- ACTIONS ---
-
-        window.selectDate = (dateStr) => {
-            const parts = dateStr.split('-');
-            store.view.selectedDate = new Date(parts[0], parts[1]-1, parts[2]);
-            store.render();
-        };
-
-        window.changeMonth = (delta) => {
-            const d = store.view.currentMonth;
-            store.view.currentMonth = new Date(d.getFullYear(), d.getMonth() + delta, 1);
-            store.render();
-        };
-
-        window.toggleCheck = (id) => {
-            if (store.view.sortMode) return;
-            const k = formatDateKey(store.view.selectedDate);
-            const list = store.completions[k] || [];
-            
-            // Cannot check birthday/event
-            const h = store.habits.find(x => x.id === id);
-            if (!h || h.type === 'event' || h.type === 'birthday') return;
-
-            if (list.includes(id)) {
-                store.completions[k] = list.filter(x => x !== id);
-            } else {
-                store.completions[k] = [...list, id];
-                // Confetti if 100%
-                const stats = calculateStats(store.view.selectedDate);
-                // We just added one, so re-calc isn't perfect yet in sync, but close enough
-                if(stats.done + 1 === stats.total) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-            }
-            store.save();
-        };
-
-        window.toggleSort = () => {
-            store.view.sortMode = !store.view.sortMode;
-            store.render();
-        }
-
-        window.moveItem = (id, direction) => {
-            const idx = store.habits.findIndex(h => h.id === id);
-            if (idx === -1) return;
-            const target = idx + direction;
-            if (target >= 0 && target < store.habits.length) {
-                // swap orders
-                const temp = store.habits[idx].order || 0;
-                store.habits[idx].order = store.habits[target].order || 0;
-                store.habits[target].order = temp;
-                // Swap in array for safety
-                [store.habits[idx], store.habits[target]] = [store.habits[target], store.habits[idx]];
-                store.save();
-            }
-        };
-
-        window.toggleTheme = () => {
-            store.settings.theme = store.settings.theme === 'dark' ? 'light' : 'dark';
-            store.applyTheme();
-            store.save();
-        };
-
-        window.setChart = (mode) => {
-            store.view.chartMode = mode;
-            store.render();
-        };
-
-        // --- MODALS (Simplified for Vanilla) ---
-        window.openSettings = () => {
-            const modal = document.getElementById('modal-layer');
-            modal.innerHTML = `
-                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div class="bg-white dark:bg-dark-800 rounded-2xl p-6 w-80 shadow-xl space-y-4">
-                        <h2 class="font-bold text-lg dark:text-white">Settings</h2>
-                        <div class="flex justify-between items-center border p-3 rounded-lg dark:border-dark-700">
-                            <span class="text-sm dark:text-gray-300">Vacation Mode</span>
-                            <input type="checkbox" ${store.settings.vacationMode ? 'checked' : ''} onchange="toggleVacation()">
-                        </div>
-                        <button onclick="downloadData()" class="w-full py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-bold">Download Backup</button>
-                        <button onclick="document.getElementById('fileInput').click()" class="w-full py-2 border border-gray-200 dark:border-dark-600 text-gray-500 rounded-lg text-sm">Import Backup</button>
-                        <input type="file" id="fileInput" class="hidden" onchange="importData(this)">
-                        <button onclick="closeModal()" class="w-full py-2 text-gray-400 text-sm">Close</button>
-                    </div>
-                </div>
-            `;
-        };
-
-        window.openEdit = (id) => {
-            const h = id ? store.habits.find(x => x.id === id) : { name: '', icon: '⚡', type: 'habit', monthlyGoal: '' };
-            const modal = document.getElementById('modal-layer');
-            // Simplified Form
-            modal.innerHTML = `
-                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div class="bg-white dark:bg-dark-800 rounded-2xl p-6 w-80 shadow-xl space-y-4">
-                        <h2 class="font-bold text-lg dark:text-white">${id ? 'Edit' : 'New'} Item</h2>
-                        <input id="inp-name" value="${h.name}" placeholder="Name" class="w-full p-2 border rounded dark:bg-dark-900 dark:border-dark-700 dark:text-white">
-                        
-                        <div class="flex gap-2">
-                            <select id="inp-type" class="flex-1 p-2 border rounded dark:bg-dark-900 dark:border-dark-700 dark:text-white">
-                                <option value="habit" ${h.type==='habit'?'selected':''}>Routine</option>
-                                <option value="task" ${h.type==='task'?'selected':''}>Task</option>
-                                <option value="event" ${h.type==='event'?'selected':''}>Event</option>
-                                <option value="birthday" ${h.type==='birthday'?'selected':''}>Birthday</option>
-                            </select>
-                            <input id="inp-icon" value="${h.icon}" class="w-12 p-2 border rounded text-center dark:bg-dark-900 dark:border-dark-700 dark:text-white">
-                        </div>
-
-                        <div class="flex gap-2">
-                            <input id="inp-goal" type="number" value="${h.monthlyGoal || ''}" placeholder="Monthly Goal (Opt)" class="flex-1 p-2 border rounded dark:bg-dark-900 dark:border-dark-700 dark:text-white">
-                            <label class="flex items-center gap-1 text-xs dark:text-gray-300">
-                                <input type="checkbox" id="inp-timer" ${h.useTimer?'checked':''}> Timer
-                            </label>
-                        </div>
-
-                        <div class="flex gap-2">
-                            ${id ? `<button onclick="archiveHabit('${id}')" class="flex-1 py-2 text-red-500 border border-red-100 rounded">Archive</button>` : ''}
-                            <button onclick="saveHabit('${id}')" class="flex-[2] py-2 bg-indigo-600 text-white rounded font-bold">Save</button>
-                        </div>
-                        <button onclick="closeModal()" class="w-full text-xs text-gray-400 mt-2">Cancel</button>
-                    </div>
-                </div>
-            `;
-        };
-
-        window.startTimer = (id) => {
-            // Simple Timer UI
-            const modal = document.getElementById('modal-layer');
-            let timeLeft = 25 * 60;
-            modal.innerHTML = `
-                <div class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-900 text-white">
-                    <h1 class="text-4xl font-bold mb-4" id="timer-display">25:00</h1>
-                    <button onclick="closeModal()" class="text-gray-400 border border-gray-600 px-4 py-2 rounded">Cancel</button>
-                </div>
-            `;
-            const display = document.getElementById('timer-display');
-            const interval = setInterval(() => {
-                timeLeft--;
-                const m = Math.floor(timeLeft / 60);
-                const s = timeLeft % 60;
-                if (display) display.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-                if (timeLeft <= 0) {
-                    clearInterval(interval);
-                    toggleCheck(id);
-                    closeModal();
-                    alert("Focus complete!");
                 }
-            }, 1000);
-            // Dirty hack to stop interval on close
-            window.currentTimer = interval; 
-        };
+            }, [completions, selectedDateKey]);
 
-        window.closeModal = () => {
-            if(window.currentTimer) clearInterval(window.currentTimer);
-            document.getElementById('modal-layer').innerHTML = '';
-        };
-
-        // --- DATA LOGIC ---
-        window.saveHabit = (id) => {
-            const name = document.getElementById('inp-name').value;
-            if(!name) return;
-            const newItem = {
-                id: id && id !== 'null' ? id : Date.now().toString(),
-                name: name,
-                type: document.getElementById('inp-type').value,
-                icon: document.getElementById('inp-icon').value,
-                monthlyGoal: document.getElementById('inp-goal').value,
-                useTimer: document.getElementById('inp-timer').checked,
-                // Default props for new items
-                frequency: [0,1,2,3,4,5,6], 
-                targetDate: formatDateKey(store.view.selectedDate),
-                color: 'bg-indigo-500',
-                archived: false,
-                order: store.habits.length
+            const renderCalendar = () => {
+                const days = []; for(let i=0; i<firstDay; i++) days.push(<div key={`empty-${i}`} className="h-full bg-gray-50/50 dark:bg-dark-900 border-b border-r border-gray-100 dark:border-dark-700"></div>);
+                for(let d=1; d<=daysInMonth; d++) {
+                    const date = new Date(year, month, d); const k = formatDateKey(date);
+                    const dayData = completions[k] || []; const isToday = k === todayKey; const isSelected = k === selectedDateKey;
+                    const indicators = getIndicators(date);
+                    days.push(<div key={d} onClick={() => setSelectedDate(date)} className={`h-16 md:h-24 p-1 md:p-2 border-b border-r border-gray-100 dark:border-dark-700 cursor-pointer relative transition-colors ${isSelected ? 'bg-indigo-50/60 dark:bg-indigo-900/20' : 'hover:bg-gray-50 dark:hover:bg-dark-800'}`}>
+                        <div className="flex justify-between items-center"><span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${isToday ? 'bg-indigo-600 text-white' : isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>{d}</span>{dayData.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>}</div>
+                        <div className="flex gap-1 mt-1 justify-end">{indicators.map((col, idx) => <div key={idx} className={`w-1.5 h-1.5 rounded-full ${col}`}></div>)}</div>
+                    </div>);
+                }
+                return days;
             };
 
-            if (id && id !== 'null') {
-                store.habits = store.habits.map(h => h.id === id ? { ...h, ...newItem } : h);
-            } else {
-                store.habits.push(newItem);
-            }
-            store.save();
-            closeModal();
+            const rolloverCount = getRolloverCount();
+
+            return (
+                <div className="flex flex-col md:flex-row h-screen overflow-hidden selection:bg-indigo-100 text-slate-800 dark:text-slate-200 font-sans">
+                    {/* LEFT SIDEBAR */}
+                    <div className="w-80 bg-white dark:bg-dark-800 border-r border-gray-200 dark:border-dark-700 hidden md:flex flex-col z-20">
+                        <div className="p-6 border-b border-gray-100 dark:border-dark-700 flex items-center justify-between">
+                            <div className="flex items-center gap-3"><div className="bg-indigo-600 text-white p-2 rounded-lg"><Trophy size={20} /></div><div><h1 className="font-bold text-lg leading-tight dark:text-white">Habit OS</h1><p className="text-xs text-indigo-500 font-medium">Local Edition</p></div></div>
+                            <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-gray-400 hover:text-indigo-500"><Settings size={20}/></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
+                            <div className="space-y-3">{habits.filter(h => (!h.type || h.type === 'habit') && !h.archived).map(h => { 
+                                const monthlyCount = getMonthCompletionCount(h.id);
+                                return (<div key={h.id} className="group p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-700 border border-transparent hover:border-gray-100 dark:hover:border-dark-600 transition-all">
+                                    <div className="flex items-center justify-between mb-1"><div className="flex items-center gap-3"><span className="text-xl">{h.icon}</span><span className="text-sm font-medium dark:text-gray-200">{h.name}</span></div><div className="flex items-center gap-2"><span className="text-xs font-bold text-gray-400">{h.monthlyGoal > 0 ? `${monthlyCount} / ${h.monthlyGoal}` : ''}</span><button onClick={() => { setEditingHabit(h); setIsModalOpen(true); }} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-indigo-600"><Edit2 size={12} /></button></div></div>
+                                    {h.monthlyGoal > 0 ? (<MiniProgressBar value={monthlyCount} max={h.monthlyGoal} colorClass={h.color.bar} />) : (<div className="mt-1 flex items-center text-[10px] text-gray-400 gap-1"><Fire size={12} className="text-orange-500" /> {calculateStreak(h.id, completions, vacationMode)} Day Streak</div>)}
+                                </div>); 
+                            })}</div>
+                        </div>
+                    </div>
+
+                    {/* CENTER (Calendar) */}
+                    <div className="flex-1 flex flex-col bg-white dark:bg-dark-900 h-[50%] md:h-full relative order-1">
+                        <header className="glass px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-gray-100 dark:border-dark-700 z-30 bg-white/80 dark:bg-dark-900/80 sticky top-0">
+                            <div className="flex items-center gap-2 md:gap-4"><h2 className="text-lg md:text-xl font-bold text-gray-800 dark:text-white">{currentDate.toLocaleString('default', { month: 'long' })} {year}</h2><div className="flex bg-gray-100 dark:bg-dark-800 rounded-lg p-1"><button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="p-1 hover:bg-white dark:hover:bg-dark-700 rounded shadow-sm"><ChevronLeft size={16}/></button><button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-1 hover:bg-white dark:hover:bg-dark-700 rounded shadow-sm"><ChevronRight size={16}/></button></div></div>
+                            <div className="flex items-center gap-3"><button onClick={() => setDarkMode(!darkMode)} className="p-2 text-gray-400 hover:text-indigo-500 transition-colors">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><button onClick={() => {const now=new Date(); setCurrentDate(now); setSelectedDate(now);}} className="text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full">Today</button></div>
+                        </header>
+                        <div className="flex-1 overflow-auto min-h-0"><div className="grid grid-cols-7 border-b border-gray-100 dark:border-dark-700 sticky top-0 bg-white/95 dark:bg-dark-900/95 z-20 text-center py-2 text-xs font-bold text-gray-400 uppercase">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d}>{d}</div>)}</div><div className="grid grid-cols-7 auto-rows-fr">{renderCalendar()}</div></div>
+                        <div className="h-32 md:h-44 bg-white dark:bg-dark-900 border-t border-gray-100 dark:border-dark-700 p-2 md:p-4 flex flex-col flex-shrink-0 relative z-20">
+                            <div className="flex items-center gap-2 mb-2 justify-between">
+                                <div className="flex items-center gap-2"><Cloud size={16} className="text-gray-400" /><h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Consistency</h3></div>
+                                <div className="flex bg-gray-100 dark:bg-dark-800 rounded p-0.5"><button onClick={() => setChartMode('bar')} className={`p-1 rounded ${chartMode === 'bar' ? 'bg-white dark:bg-dark-700 shadow text-indigo-500' : 'text-gray-400'}`}><BarChart2 size={14}/></button><button onClick={() => setChartMode('heatmap')} className={`p-1 rounded ${chartMode === 'heatmap' ? 'bg-white dark:bg-dark-700 shadow text-indigo-500' : 'text-gray-400'}`}><Grid size={14}/></button></div>
+                            </div>
+                            <div className="flex-1 min-h-0">{chartMode === 'heatmap' ? <YearHeatmap completions={completions} habits={habits} /> : <ConsistencyChart completions={completions} habits={habits} />}</div>
+                        </div>
+                    </div>
+
+                    {/* RIGHT SIDEBAR (Agenda) */}
+                    <div className="w-full md:w-96 bg-gray-50 dark:bg-dark-800/50 border-t md:border-t-0 md:border-l border-gray-200 dark:border-dark-700 flex flex-col z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] md:shadow-xl h-[50%] md:h-full order-2">
+                        {rolloverCount > 0 && (
+                            <div className="bg-indigo-600 text-white p-3 flex justify-between items-center text-xs font-bold shadow-md relative z-40">
+                                <span>{rolloverCount} overdue tasks.</span>
+                                <button onClick={executeRollover} className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded flex items-center gap-1"><RotateCcw size={12}/> Move to Today</button>
+                            </div>
+                        )}
+                        <div className="glass px-6 py-4 md:p-6 border-b border-gray-200/50 dark:border-dark-700 flex flex-col gap-3 sticky top-0 z-30">
+                            <div className="flex justify-between items-center">
+                                <div><h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}</h2><p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm">{selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p></div>
+                                <div className="flex items-center gap-3"><button onClick={() => setIsReorderMode(!isReorderMode)} className={`p-2 rounded-lg transition-colors ${isReorderMode ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-white' : 'text-gray-400 hover:text-gray-600'}`}><Sort size={20}/></button><div className="md:hidden"><button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="bg-indigo-600 text-white p-2 rounded-lg shadow-sm"><Plus size={18} /></button></div></div>
+                            </div>
+                            {/* Category Filter Pills (Dynamic) */}
+                            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                                {visibleCategories.map(c => (
+                                    <button key={c} onClick={() => setSelectedCategory(c)} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap ${selectedCategory === c ? 'bg-gray-800 text-white dark:bg-white dark:text-black' : 'bg-white dark:bg-dark-700 text-gray-500 border border-gray-100 dark:border-dark-600'}`}>{c}</button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 scrollbar-thin">
+                            {todaysHabits.length === 0 ? (<div className="text-center py-10 text-gray-400 dark:text-gray-600"><div className="text-4xl mb-2">🏖️</div><p className="text-sm font-medium">Nothing scheduled.</p></div>) : 
+                            (<div className="space-y-3">{todaysHabits.map(h => { 
+                                const isDone = completions[selectedDateKey]?.includes(h.id); 
+                                const streak = calculateStreak(h.id, completions, vacationMode);
+                                const type = h.type || (h.isTask ? 'task' : 'habit');
+                                const isHeroic = h.difficulty === 'hard';
+                                const isEvent = type === 'event' || type === 'birthday';
+                                
+                                return (
+                                <div key={h.id} onMouseDown={() => handleTouchStart(h)} onMouseUp={handleTouchEnd} onMouseLeave={handleTouchEnd} onTouchStart={() => handleTouchStart(h)} onTouchEnd={handleTouchEnd} onClick={() => { if(!longPressTimer.current && !isReorderMode) toggleHabit(h.id, selectedDateKey); }} 
+                                    className={`no-select relative group flex items-center p-3.5 rounded-2xl border transition-all duration-200 transform 
+                                    ${isReorderMode ? 'border-indigo-300 dark:border-indigo-800' : 'cursor-pointer active:scale-95'}
+                                    ${isHeroic && !isDone ? 'border-amber-400/50 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-500/30' : ''}
+                                    ${type === 'birthday' ? 'border-pink-200 bg-pink-50 dark:bg-pink-900/10 dark:border-pink-500/30' : ''}
+                                    ${type === 'event' ? 'border-blue-200 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-500/30' : ''}
+                                    ${isDone ? 'bg-white/50 dark:bg-dark-700/50 border-transparent opacity-70' : (
+                                        (type === 'habit' && !isHeroic) || type === 'task' ? 'bg-white dark:bg-dark-700 border-gray-100 dark:border-dark-600 shadow-sm' : 'shadow-md shadow-gray-100 dark:shadow-none'
+                                    )}
+                                    `}>
+                                    
+                                    {isReorderMode ? (
+                                        <div className="flex flex-col gap-1 mr-3 text-gray-400"><button onClick={(e) => {e.stopPropagation(); moveHabit(h.id, -1)}} className="hover:text-indigo-600 p-1"><ArrowUp size={14}/></button><button onClick={(e) => {e.stopPropagation(); moveHabit(h.id, 1)}} className="hover:text-indigo-600 p-1"><ArrowDown size={14}/></button></div>
+                                    ) : (
+                                        <div className={`w-6 h-6 rounded-lg mr-3 flex items-center justify-center transition-colors ${isDone ? `${h.color.dot} text-white` : (type === 'birthday' ? 'bg-pink-100 text-pink-500 dark:bg-pink-900/30' : type === 'event' ? 'bg-blue-100 text-blue-500 dark:bg-blue-900/30' : isHeroic ? 'bg-amber-100 text-amber-500 dark:bg-amber-900/30' : 'bg-gray-100 dark:bg-dark-800 text-transparent')}`}>
+                                            {isHeroic && !isDone ? <Star size={14} fill="currentColor" /> : type === 'birthday' ? <Cake size={14} /> : type === 'event' ? <CalendarIcon size={14} /> : <Check size={14} strokeWidth={3} />}
+                                        </div>
+                                    )}
+                                    
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2"><span className="text-lg">{h.icon}</span><span className={`text-sm font-bold truncate ${isDone ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>{h.name}</span></div>
+                                            <div className="flex items-center gap-1">
+                                                {/* Focus Button */}
+                                                {!isDone && (type === 'habit' || type === 'task') && !isReorderMode && h.useTimer && 
+                                                    <button onClick={(e) => { e.stopPropagation(); setActiveFocusHabit(h); }} className="p-1 text-gray-300 hover:text-indigo-500 transition-colors"><Play size={14} fill="currentColor" /></button>
+                                                }
+                                                {isHeroic && !isDone && <span className="text-[9px] font-black bg-gradient-to-r from-amber-400 to-orange-500 text-white px-1.5 py-0.5 rounded shadow-sm">HEROIC</span>}
+                                                {type === 'birthday' && <span className="text-[9px] font-bold text-pink-500 bg-pink-100 dark:bg-pink-900/30 px-1.5 py-0.5 rounded">BDAY</span>}
+                                                {!isDone && !isHeroic && !isEvent && streak > 2 && <div className="flex items-center text-[10px] font-bold text-orange-500 gap-0.5"><Fire size={12} /> {streak}</div>}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            {h.time && <span className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded"><Clock size={10} /> {h.time}</span>}
+                                            {type === 'task' && <span className="text-[9px] font-bold bg-gray-100 dark:bg-dark-600 text-gray-500 px-1.5 py-0.5 rounded uppercase tracking-wide">Task</span>}
+                                            {type === 'event' && <span className="text-[9px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-500 px-1.5 py-0.5 rounded uppercase tracking-wide">Event</span>}
+                                            {h.category && h.category !== 'General' && <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide border border-gray-100 dark:border-dark-600 px-1.5 py-0.5 rounded">{h.category}</span>}
+                                        </div>
+                                    </div>
+                                </div>); 
+                            })}</div>)}
+                        </div>
+                        <div className="hidden md:block p-4 border-t border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900"><button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg transition-transform hover:-translate-y-0.5">+ Add Item</button></div>
+                    </div>
+                    
+                    {/* MODALS */}
+                    <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} userId={userId} setUserId={setUserId} onImport={handleImport} onExport={handleExport} vacationMode={vacationMode} setVacationMode={setVacationMode} onReset={handleReset} />
+                    <HabitModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveHabit} onDelete={handleDeleteHabit} initialData={editingHabit} />
+                    <NoteModal isOpen={!!detailHabit} onClose={() => setDetailHabit(null)} habit={detailHabit} streak={detailHabit ? calculateStreak(detailHabit.id, completions) : 0} notes={detailHabit ? dailyNotes[`${detailHabit.id}_${selectedDateKey}`] : ''} onSaveNote={handleSaveNote} />
+                    {activeFocusHabit && <FocusTimer habit={activeFocusHabit} onClose={() => setActiveFocusHabit(null)} onComplete={() => { toggleHabit(activeFocusHabit.id, selectedDateKey); setActiveFocusHabit(null); }} />}
+                </div>
+            );
         };
 
-        window.archiveHabit = (id) => {
-            if(confirm("Archive this habit?")) {
-                store.habits = store.habits.map(h => h.id === id ? { ...h, archived: true } : h);
-                store.save();
-                closeModal();
-            }
-        };
-
-        window.toggleVacation = () => {
-            store.settings.vacationMode = !store.settings.vacationMode;
-            store.save();
-            openSettings(); // Re-render modal
-        };
-
-        window.downloadData = () => {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store));
-            const node = document.createElement('a');
-            node.setAttribute("href", dataStr);
-            node.setAttribute("download", "habit_os_backup.json");
-            document.body.appendChild(node);
-            node.click();
-            node.remove();
-        };
-
-        window.importData = (input) => {
-            const file = input.files[0];
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const data = JSON.parse(e.target.result);
-                store.habits = data.habits || [];
-                store.completions = data.completions || {};
-                store.settings = data.settings || store.settings;
-                store.save();
-                closeModal();
-            };
-            reader.readAsText(file);
-        };
-
-        // --- CORE RENDERER ---
-        store.render = () => {
-            const app = document.getElementById('app');
-            app.innerHTML = `
-                ${renderSidebar()}
-                ${renderCalendar()}
-                ${renderAgenda()}
-            `;
-        };
-
-        // Boot
-        store.init();
-
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
