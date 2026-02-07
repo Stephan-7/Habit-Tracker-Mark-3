@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Habit OS — Compact Gemini Style</title>
+<title>Habit OS — Local Only (Compact)</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#f5f7fb; --muted:#6b7280; --card:rgba(255,255,255,0.9);
+  --bg:#f5f7fb; --muted:#6b7280; --card:rgba(255,255,255,0.92);
   --accent1:#6b46ff; --accent2:#7c3aed; --radius:12px;
   --shadow:0 10px 30px rgba(16,24,40,0.06);
 }
@@ -18,7 +18,6 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#f8f9fc,var(--b
 .left{width:260px;flex-shrink:0}
 .right{width:320px;flex-shrink:0}
 .center{flex:1;display:flex;flex-direction:column;gap:12px;min-height:0}
-.header{display:flex;align-items:center;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:10px}
 .logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
 .muted{color:var(--muted);font-size:13px}
@@ -63,18 +62,18 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#f8f9fc,var(--b
 <body>
 <div class="app" id="app">
   <aside class="panel left">
-    <div class="header">
+    <div style="display:flex;justify-content:space-between;align-items:center">
       <div class="brand"><div class="logo">H</div><div><div style="font-weight:700">Habit OS</div><div class="small muted">Local Mode</div></div></div>
       <div class="small muted">v1</div>
     </div>
 
-    <div><div class="small muted">Backup ID</div><div style="font-family:monospace;margin-top:8px;background:#fff;padding:8px;border-radius:8px;border:1px solid rgba(15,23,42,0.04)" id="backup">user_xxx</div></div>
+    <div><div class="small muted">Backup ID</div><div style="font-family:monospace;margin-top:8px;background:#fff;padding:8px;border-radius:8px;border:1px solid rgba(15,23,42,0.04)" id="backup">local_user</div></div>
 
     <div class="small muted">All Items</div>
     <div class="list" id="list"></div>
 
     <div style="margin-top:auto;display:flex;gap:8px">
-      <button class="btn primary" id="addLeft">+ Add</button>
+      <button class="btn primary" id="addLeft">+ New</button>
       <button class="btn" id="exportBtn">Export</button>
     </div>
   </aside>
@@ -139,24 +138,33 @@ html,body{height:100%;margin:0;background:linear-gradient(180deg,#f8f9fc,var(--b
 </div>
 
 <script>
-/* Compact app logic, single-file, minimal and robust */
-const LS = "habit_os_compact_v1";
-const today = ()=>new Date().toISOString().slice(0,10);
-const uid = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const dateObj = s=>new Date(s+"T00:00:00");
-const ymd = d=>d.toISOString().slice(0,10);
+/* =========================
+   Local-only Habit OS
+   - Stores everything in localStorage
+   - Compact, robust, event-delegated
+   ========================= */
 
-let store = JSON.parse(localStorage.getItem(LS)||"null") || {
-  habits: [],
+const LS_KEY = "habit_os_local_v1";
+const todayStr = () => new Date().toISOString().slice(0,10);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const dateObj = s => new Date(s + "T00:00:00");
+const ymd = d => d.toISOString().slice(0,10);
+
+const defaultStore = () => ({
+  habits: [
+    { id: uid(), name: "Daily Planning", type: "habit", category: "Work", difficulty: "Easy", monthlyGoal: 20, time: "", frequency: [1,2,3,4,5], useTimer: true, archived:false, order:0, icon:"🧠" }
+  ],
   completions: {},
-  view: { selected: today(), offset:0 },
-  settings: { id: "user_"+Math.random().toString(36).slice(2,8) }
-};
-const save = ()=>localStorage.setItem(LS, JSON.stringify(store));
+  settings: { backupId: "local_" + Math.random().toString(36).slice(2,8) },
+  view: { selected: todayStr(), offset: 0 }
+});
+
+let store = JSON.parse(localStorage.getItem(LS_KEY) || "null") || defaultStore();
+const save = () => localStorage.setItem(LS_KEY, JSON.stringify(store));
 
 /* helpers */
-const $ = id=>document.getElementById(id);
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const $ = id => document.getElementById(id);
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
 
 /* calendar helpers */
 function monthDays(offset){
@@ -170,54 +178,70 @@ function monthDays(offset){
   return {cells,monthDate:first};
 }
 
-/* due/completion */
+/* due/completion logic */
 function isDue(h,date){
-  const d = dateObj(date), dow = d.getDay();
-  if(h.type==="habit"){ const f = h.frequency && h.frequency.length? h.frequency : [0,1,2,3,4,5,6]; return !h.archived && f.includes(dow); }
-  if(h.type==="task"||h.type==="event") return !h.archived && h.target===date;
-  if(h.type==="birthday"){ if(!h.target) return false; const td=dateObj(h.target); return !h.archived && td.getDate()===d.getDate() && td.getMonth()===d.getMonth(); }
+  const d = dateObj(date);
+  if(h.type==="habit"){
+    const freq = h.frequency && h.frequency.length ? h.frequency : [0,1,2,3,4,5,6];
+    return !h.archived && freq.includes(d.getDay());
+  }
+  if(h.type==="task"||h.type==="event") return !h.archived && h.target === date;
+  if(h.type==="birthday"){ if(!h.target) return false; const td = dateObj(h.target); return !h.archived && td.getDate()===d.getDate() && td.getMonth()===d.getMonth(); }
   return false;
 }
 function dueItems(date){ return store.habits.filter(h=>isDue(h,date) && !h.archived); }
-function addDone(date,id){ const c=store.completions[date]||[]; if(!c.includes(id)) c.push(id); store.completions[date]=c; save(); }
-function removeDone(date,id){ const c=store.completions[date]||[]; store.completions[date]=c.filter(x=>x!==id); if(!store.completions[date].length) delete store.completions[date]; save(); }
+function addDone(date,id){ const c = store.completions[date]||[]; if(!c.includes(id)) c.push(id); store.completions[date]=c; save(); }
+function removeDone(date,id){ const c = store.completions[date]||[]; store.completions[date]=c.filter(x=>x!==id); if(!store.completions[date].length) delete store.completions[date]; save(); }
 
 /* streak/monthly */
-function streak(h){
-  let s=0; let d=dateObj(today());
+function streakForHabit(h){
+  let streak=0; let d = dateObj(todayStr());
   for(let i=0;i<365;i++){
-    const ds=ymd(d);
-    if(isDue(h,ds)){ if((store.completions[ds]||[]).includes(h.id)) s++; else break; } else break;
+    const ds = ymd(d);
+    if(isDue(h,ds)){
+      const done = (store.completions[ds]||[]).includes(h.id);
+      if(done) streak++; else break;
+    } else break;
     d.setDate(d.getDate()-1);
   }
-  return s;
+  return streak;
 }
 function monthlyCount(h){
   if(!h.monthlyGoal) return 0;
-  const now=dateObj(today()), y=now.getFullYear(), m=now.getMonth(); let c=0;
-  Object.entries(store.completions).forEach(([date,ids])=>{ const d=dateObj(date); if(d.getFullYear()===y && d.getMonth()===m && ids.includes(h.id)) c++; });
-  return c;
+  const now = dateObj(todayStr()), y = now.getFullYear(), m = now.getMonth();
+  let count=0;
+  Object.entries(store.completions).forEach(([date,ids])=>{
+    const d = dateObj(date);
+    if(d.getFullYear()===y && d.getMonth()===m && ids.includes(h.id)) count++;
+  });
+  return count;
 }
 
-/* heatmap */
+/* heatmap last 30 days */
 function last30(){
-  const arr=[]; const base=dateObj(today());
-  for(let i=29;i>=0;i--){ const d=new Date(base); d.setDate(d.getDate()-i); const ds=ymd(d); const due=store.habits.filter(h=>["habit","task"].includes(h.type)&&isDue(h,ds)); const done=(store.completions[ds]||[]).length; arr.push({date:ds,total:due.length,done}); }
+  const arr=[]; const base = dateObj(todayStr());
+  for(let i=29;i>=0;i--){
+    const d = new Date(base); d.setDate(d.getDate()-i);
+    const ds = ymd(d);
+    const due = store.habits.filter(h=>["habit","task"].includes(h.type) && isDue(h,ds));
+    const done = (store.completions[ds]||[]).length;
+    arr.push({date:ds,total:due.length,done});
+  }
   return arr;
 }
 
 /* render */
 function render(){
-  $("backup").textContent = store.settings.id;
+  $("backup").textContent = store.settings.backupId;
   const sel = store.view.selected;
   $("selected").textContent = sel;
 
   // left list
-  const list = $("list"); list.innerHTML="";
-  store.habits.filter(h=>!h.archived).sort((a,b)=>a.name.localeCompare(b.name)).forEach(h=>{
-    const s = streak(h), m = monthlyCount(h), pct = h.monthlyGoal? clamp(Math.round((m/(h.monthlyGoal||1))*100),0,100):0;
+  const list = $("list"); list.innerHTML = "";
+  store.habits.filter(h=>!h.archived).sort((a,b)=>a.order - b.order).forEach(h=>{
+    const s = streakForHabit(h), m = monthlyCount(h), pct = h.monthlyGoal ? clamp(Math.round((m/(h.monthlyGoal||1))*100),0,100) : 0;
     const div = document.createElement("div"); div.className="card";
-    div.innerHTML = `<div class="icon">${h.icon||"•"}</div><div class="meta"><div class="title">${h.name}</div><div class="sub">${h.type} • ${h.category||"General"}</div><div class="progress"><i style="width:${pct}%"></i></div><div class="small" style="margin-top:6px">Streak ${s} • ${m}${h.monthlyGoal?` / ${h.monthlyGoal}`:""}</div></div><div class="actions"><button class="btn" data-edit="${h.id}">Edit</button></div>`;
+    div.innerHTML = `<div class="icon">${h.icon||"•"}</div><div class="meta"><div class="title">${h.name}</div><div class="sub">${h.type} • ${h.category||"General"}</div><div class="progress"><i style="width:${pct}%"></i></div><div class="small" style="margin-top:8px">Streak ${s} • ${m}${h.monthlyGoal?` / ${h.monthlyGoal}`:""}</div></div><div class="actions"><button class="btn" data-edit="${h.id}">Edit</button></div>`;
     list.appendChild(div);
   });
 
@@ -228,16 +252,16 @@ function render(){
   $("weekHead").innerHTML = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(w=>`<div class="weekday">${w}</div>`).join("");
   $("calGrid").innerHTML = m.cells.map(d=>{
     if(!d) return `<div></div>`;
-    const ds=ymd(d), selc = ds===sel ? "cal-day sel" : "cal-day";
+    const ds = ymd(d), selc = ds===sel ? "cal-day sel" : "cal-day";
     const dots = store.habits.map(h=>{ if(h.type==="event" && isDue(h,ds)) return `<div class="dot" style="background:#60a5fa"></div>`; if(h.type==="birthday" && isDue(h,ds)) return `<div class="dot" style="background:#fb7185"></div>`; return ""; }).filter(Boolean).slice(0,3).join("");
     return `<button data-date="${ds}" class="${selc}"><div style="font-weight:700">${d.getDate()}</div><div class="dots">${dots}</div></button>`;
   }).join("");
 
   // heatmap
-  $("heat").innerHTML = last30().map(h=>{ const pct = h.total? h.done/h.total:0; const color = pct===1? "#6b46ff": pct>=0.5? "#a78bfa": pct>0? "#c7b3ff":"#e6e9ef"; return `<div class="sq" style="background:${color}" title="${h.date}"></div>`; }).join("");
+  $("heat").innerHTML = last30().map(h=>{ const pct = h.total ? h.done / h.total : 0; const color = pct===1 ? "#6b46ff" : pct>=0.5 ? "#a78bfa" : pct>0 ? "#c7b3ff" : "#e6e9ef"; return `<div class="sq" style="background:${color}" title="${h.date}"></div>`; }).join("");
 
   // agenda
-  const agenda = $("agenda"); agenda.innerHTML="";
+  const agenda = $("agenda"); agenda.innerHTML = "";
   const due = dueItems(sel);
   if(!due.length) agenda.innerHTML = `<div class="empty"><div class="emoji">🎈</div><div class="small">Nothing scheduled</div></div>`;
   else due.forEach(h=>{
@@ -261,29 +285,30 @@ document.getElementById("app").addEventListener("click", e=>{
 /* static controls */
 $("prev").onclick = ()=>{ store.view.offset--; save(); render(); };
 $("next").onclick = ()=>{ store.view.offset++; save(); render(); };
-$("today").onclick = ()=>{ store.view.selected = today(); store.view.offset = 0; save(); render(); };
+$("today").onclick = ()=>{ store.view.selected = todayStr(); store.view.offset = 0; save(); render(); };
 $("addLeft").onclick = ()=>openModal();
 $("addRight").onclick = ()=>openModal();
 $("exportBtn").onclick = ()=>{ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(store)],{type:"application/json"})); a.download="habit_os_backup.json"; a.click(); };
 
 /* modal logic */
-const modal = $("modal"), form=$("form");
+const modal = $("modal"), form = $("form");
 $("closeModal").onclick = ()=>{ modal.style.display="none"; modal.dataset.edit=""; };
 $("cancel").onclick = ()=>{ modal.style.display="none"; modal.dataset.edit=""; };
 document.querySelectorAll("#freq button").forEach(b=>b.onclick=()=>b.classList.toggle("active"));
 
 function openModal(h=null){
-  const f = h? h : { id:uid(), name:"", type:"habit", category:"General", difficulty:"Easy", monthlyGoal:null, time:"", frequency:[1,2,3,4,5], target:today(), useTimer:false, icon:"•" };
-  $("f_name").value = f.name||"";
-  $("f_type").value = f.type||"habit";
-  $("f_cat").value = f.category||"General";
-  $("f_diff").value = f.difficulty||"Easy";
-  $("f_goal").value = f.monthlyGoal||"";
-  $("f_time").value = f.time||"";
-  $("f_date").value = f.target||"";
+  const f = h ? h : { id: uid(), name:"", type:"habit", category:"General", difficulty:"Easy", monthlyGoal:null, time:"", frequency:[1,2,3,4,5], target: todayStr(), useTimer:false, icon:"•" };
+  $("f_name").value = f.name || "";
+  $("f_type").value = f.type || "habit";
+  $("f_cat").value = f.category || "General";
+  $("f_diff").value = f.difficulty || "Easy";
+  $("f_goal").value = f.monthlyGoal || "";
+  $("f_time").value = f.time || "";
+  $("f_date").value = f.target || "";
   $("f_timer").checked = !!f.useTimer;
   document.querySelectorAll("#freq button").forEach(btn=>{ const day=parseInt(btn.dataset.day); btn.classList.toggle("active", (f.frequency||[0,1,2,3,4,5,6]).includes(day)); });
-  modal.style.display="flex"; modal.dataset.edit = h? h.id : "";
+  modal.style.display = "flex";
+  modal.dataset.edit = h ? h.id : "";
 }
 
 /* form submit */
@@ -296,17 +321,17 @@ form.onsubmit = e=>{
   const difficulty = $("f_diff").value;
   const monthlyGoal = $("f_goal").value ? parseInt($("f_goal").value) : null;
   const time = $("f_time").value || "";
-  const target = $("f_date").value || today();
+  const target = $("f_date").value || todayStr();
   const useTimer = $("f_timer").checked;
   const freq = Array.from(document.querySelectorAll("#freq button")).filter(b=>b.classList.contains("active")).map(b=>parseInt(b.dataset.day));
   const item = { id, name, type, category, difficulty, monthlyGoal, time, target, useTimer, frequency: freq.length?freq:[0,1,2,3,4,5,6], archived:false, order: store.habits.length, icon:"•" };
   const existing = store.habits.find(x=>x.id===id);
-  if(existing){ store.habits = store.habits.map(x=> x.id===id? item : x); } else store.habits.push(item);
-  if(["task","event","birthday"].includes(type)){ store.view.selected = target; const t=dateObj(target), now=new Date(); store.view.offset = (t.getFullYear()-now.getFullYear())*12 + (t.getMonth()-now.getMonth()); }
-  save(); modal.style.display="none"; render();
+  if(existing){ store.habits = store.habits.map(x=> x.id===id ? item : x); } else store.habits.push(item);
+  if(["task","event","birthday"].includes(type)){ store.view.selected = target; const t = dateObj(target), now = new Date(); store.view.offset = (t.getFullYear()-now.getFullYear())*12 + (t.getMonth()-now.getMonth()); }
+  save(); modal.style.display="none"; modal.dataset.edit=""; render();
 };
 
-/* timer */
+/* simple timer overlay */
 let _timer = null;
 function startTimer(id,date){
   const h = store.habits.find(x=>x.id===id); if(!h) return;
@@ -316,15 +341,11 @@ function startTimer(id,date){
   overlay.innerHTML = `<div class="modal" style="max-width:420px;text-align:center"><div class="small">Focus Session</div><div id="t_time" style="font-size:32px;font-weight:700;margin:12px 0">25:00</div><div class="small" id="t_label">${h.name}</div><div style="margin-top:12px"><button class="btn" id="t_cancel">Cancel</button></div></div>`;
   document.body.appendChild(overlay);
   const ttime = $("t_time"), tcancel = $("t_cancel");
-  _timer = setInterval(()=>{ rem--; const m=String(Math.floor(rem/60)).padStart(2,"0"), s=String(rem%60).padStart(2,"0"); if(ttime) ttime.textContent = `${m}:${s}`; if(rem<=0){ clearInterval(_timer); _timer=null; addDone(date,id); overlay.remove(); render(); } },1000);
+  _timer = setInterval(()=>{ rem--; const m = String(Math.floor(rem/60)).padStart(2,"0"); const s = String(rem%60).padStart(2,"0"); if(ttime) ttime.textContent = `${m}:${s}`; if(rem<=0){ clearInterval(_timer); _timer=null; addDone(date,id); overlay.remove(); render(); } },1000);
   tcancel.onclick = ()=>{ if(_timer) clearInterval(_timer); _timer=null; overlay.remove(); };
 }
 
-/* seed */
-if(!store.habits.length){
-  store.habits.push({ id:uid(), name:"Daily Planning", type:"habit", category:"Work", difficulty:"Easy", monthlyGoal:20, time:"", frequency:[1,2,3,4,5], useTimer:true, archived:false, order:0, icon:"🧠" });
-  save();
-}
+/* initial render */
 render();
 </script>
 </body>
