@@ -1,461 +1,436 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Habit OS Stable Pro</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="UTF-8" />
+  <title>Habit OS — Light Planner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
+      darkMode: "class",
       theme: {
         extend: {
           colors: {
-            dark: {900:'#020617',800:'#0f172a',700:'#1e293b',600:'#334155'}
-          }
-        }
-      }
-    }
+            glass: "rgba(255,255,255,0.55)",
+            border: "rgba(0,0,0,0.08)",
+            soft: "#f7f7f8",
+          },
+          boxShadow: {
+            soft: "0 4px 20px rgba(0,0,0,0.06)",
+          },
+        },
+      },
+    };
   </script>
+
+  <style>
+    body {
+      background: #f5f6f7;
+    }
+    .glass {
+      backdrop-filter: blur(20px);
+      background: rgba(255, 255, 255, 0.65);
+    }
+  </style>
 </head>
-<body class="bg-dark-900 text-slate-100 min-h-screen flex items-stretch justify-center">
-<div id="app" class="w-full max-w-6xl m-3 md:m-6"></div>
+
+<body class="text-gray-800">
+  <div id="app" class="w-full max-w-[1600px] mx-auto px-6 py-6"></div>
+
+  <!-- Timer Overlay -->
+  <div id="timerOverlay" class="fixed inset-0 hidden items-center justify-center bg-black/40 backdrop-blur-sm z-50">
+    <div class="glass border border-border rounded-2xl shadow-soft px-8 py-6 flex flex-col items-center gap-4">
+      <div class="text-xs uppercase tracking-wide text-gray-500">Focus Session</div>
+      <div id="timerTime" class="text-5xl font-semibold tabular-nums">25:00</div>
+      <div id="timerLabel" class="text-base text-gray-700"></div>
+      <button id="timerCancel" class="px-4 py-2 rounded-xl border border-gray-300 hover:bg-gray-100 text-sm">
+        Cancel
+      </button>
+    </div>
+  </div>
 
 <script>
-const LS_KEY="habit_os_v1";
-const todayStr=()=>new Date().toISOString().slice(0,10);
-const clone=o=>JSON.parse(JSON.stringify(o));
-const load=()=>{try{return JSON.parse(localStorage.getItem(LS_KEY))||null}catch{return null}};
-const emptyStore=()=>({
-  habits:[],
-  completions:{},
-  settings:{theme:"dark",vacationMode:false},
-  view:{selectedDate:todayStr(),monthOffset:0,manualSort:false}
+/* -------------------------------------------------------
+   STORAGE + UTILITIES
+------------------------------------------------------- */
+const LS_KEY = "habit_os_v1_lightplanner";
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const load = () => {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || null; }
+  catch { return null; }
+};
+const emptyStore = () => ({
+  habits: [],
+  completions: {},
+  settings: { theme: "light", vacationMode: false },
+  view: { selectedDate: todayStr(), monthOffset: 0, manualSort: false }
 });
-let store=load()||emptyStore();
-const save=()=>localStorage.setItem(LS_KEY,JSON.stringify(store));
-const setTheme=()=>{document.documentElement.classList.toggle("dark",store.settings.theme==="dark")};
-setTheme();
-const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const dateObj=s=>new Date(s+"T00:00:00");
-const ymd=d=>d.toISOString().slice(0,10);
-const fmtMonthYear=d=>d.toLocaleDateString(undefined,{month:"long",year:"numeric"});
+let store = load() || emptyStore();
+const save = () => localStorage.setItem(LS_KEY, JSON.stringify(store));
 
-const addCompletion=(date,id)=>{const c=store.completions[date]||[];if(!c.includes(id))c.push(id);store.completions[date]=c};
-const removeCompletion=(date,id)=>{const c=store.completions[date]||[];store.completions[date]=c.filter(x=>x!==id);if(!store.completions[date].length)delete store.completions[date]};
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const dateObj = (s) => new Date(s + "T00:00:00");
+const ymd = (d) => d.toISOString().slice(0, 10);
+const fmtMonthYear = (d) => d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
-const isDue=(h,date)=>{
-  const d=dateObj(date),dow=d.getDay();
-  if(h.type==="habit"){
-    const freq=h.frequency&&h.frequency.length?h.frequency:[0,1,2,3,4,5,6];
-    return !h.archived&&freq.includes(dow);
+/* -------------------------------------------------------
+   COMPLETIONS
+------------------------------------------------------- */
+const addCompletion = (date, id) => {
+  const c = store.completions[date] || [];
+  if (!c.includes(id)) c.push(id);
+  store.completions[date] = c;
+};
+const removeCompletion = (date, id) => {
+  const c = store.completions[date] || [];
+  store.completions[date] = c.filter((x) => x !== id);
+  if (!store.completions[date].length) delete store.completions[date];
+};
+
+/* -------------------------------------------------------
+   DUE LOGIC
+------------------------------------------------------- */
+const isDue = (h, date) => {
+  const d = dateObj(date);
+  const dow = d.getDay();
+
+  if (h.type === "habit") {
+    const freq = h.frequency?.length ? h.frequency : [0,1,2,3,4,5,6];
+    return !h.archived && freq.includes(dow);
   }
-  if(h.type==="task")return!h.archived&&h.targetDate===date;
-  if(h.type==="event")return!h.archived&&h.targetDate===date;
-  if(h.type==="birthday"){
-    if(!h.targetDate)return false;
-    const td=dateObj(h.targetDate);
-    return!h.archived&&td.getDate()===d.getDate()&&td.getMonth()===d.getMonth();
+  if (h.type === "task") return !h.archived && h.targetDate === date;
+  if (h.type === "event") return !h.archived && h.targetDate === date;
+
+  if (h.type === "birthday") {
+    if (!h.targetDate) return false;
+    const td = dateObj(h.targetDate);
+    return !h.archived && td.getDate() === d.getDate() && td.getMonth() === d.getMonth();
   }
   return false;
 };
 
-const dueHabitsTasks=date=>store.habits.filter(h=>["habit","task"].includes(h.type)&&isDue(h,date));
-const dayCompletionStats=date=>{
-  const due=dueHabitsTasks(date);
-  const doneIds=new Set(store.completions[date]||[]);
-  let total=due.length,done=0;
-  due.forEach(h=>{if(doneIds.has(h.id))done++});
-  return{total,done,ratio:total?done/total:0};
+const dueItems = (date) =>
+  store.habits.filter((h) => isDue(h, date) && !h.archived);
+
+/* -------------------------------------------------------
+   CALENDAR + HEATMAP
+------------------------------------------------------- */
+const dayStats = (date) => {
+  const due = store.habits.filter((h) => ["habit","task"].includes(h.type) && isDue(h, date));
+  const done = store.completions[date] || [];
+  return { total: due.length, done: done.length };
 };
-const last30Stats=()=>{
-  const arr=[],base=dateObj(todayStr());
-  for(let i=29;i>=0;i--){
-    const d=new Date(base);d.setDate(d.getDate()-i);
-    const ds=ymd(d);
-    arr.push({date:ds,...dayCompletionStats(ds)});
+
+const last30 = () => {
+  const arr = [];
+  const base = dateObj(todayStr());
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(base);
+    d.setDate(d.getDate() - i);
+    const ds = ymd(d);
+    const st = dayStats(ds);
+    arr.push({ date: ds, ...st });
   }
   return arr;
 };
-const monthDays=offset=>{
-  const base=new Date();base.setDate(1);base.setMonth(base.getMonth()+offset);
-  const year=base.getFullYear(),month=base.getMonth();
-  const first=new Date(year,month,1),startDow=first.getDay();
-  const daysIn=new Date(year,month+1,0).getDate(),cells=[];
-  for(let i=0;i<startDow;i++)cells.push(null);
-  for(let d=1;d<=daysIn;d++)cells.push(new Date(year,month,d));
-  return{cells,monthDate:first};
-};
-const streakForHabit=h=>{
-  let streak=0,d=dateObj(todayStr());
-  for(let i=0;i<365;i++){
-    const ds=ymd(d);
-    if(isDue(h,ds)){
-      const done=(store.completions[ds]||[]).includes(h.id);
-      if(done)streak++;
-      else if(!store.settings.vacationMode)break;
-    }else if(!store.settings.vacationMode)break;
-    d.setDate(d.getDate()-1);
-  }
-  return streak;
-};
-const monthlyCount=h=>{
-  if(!h.monthlyGoal)return 0;
-  const now=dateObj(todayStr()),y=now.getFullYear(),m=now.getMonth();
-  let count=0;
-  Object.entries(store.completions).forEach(([date,ids])=>{
-    const d=dateObj(date);
-    if(d.getFullYear()===y&&d.getMonth()===m&&ids.includes(h.id))count++;
-  });
-  return count;
+
+const monthDays = (offset) => {
+  const base = new Date();
+  base.setDate(1);
+  base.setMonth(base.getMonth() + offset);
+
+  const year = base.getFullYear();
+  const month = base.getMonth();
+  const first = new Date(year, month, 1);
+  const startDow = first.getDay();
+  const daysIn = new Date(year, month + 1, 0).getDate();
+
+  const cells = [];
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= daysIn; d++) cells.push(new Date(year, month, d));
+
+  return { cells, monthDate: first };
 };
 
-const openHabitEditor=h=>{
-  const base=h?clone(h):{
-    id:uid(),name:"",type:"habit",icon:"✅",
-    targetDate:todayStr(),frequency:[1,2,3,4,5],
-    monthlyGoal:null,useTimer:false,archived:false,
-    order:store.habits.length
+/* -------------------------------------------------------
+   EDITOR
+------------------------------------------------------- */
+const openEditor = (h) => {
+  const base = h ? clone(h) : {
+    id: uid(),
+    name: "",
+    type: "habit",
+    icon: "•",
+    targetDate: todayStr(),
+    frequency: [1,2,3,4,5],
+    monthlyGoal: null,
+    useTimer: false,
+    archived: false,
+    order: store.habits.length
   };
-  const name=prompt("Name",base.name);
-  if(name===null)return;
-  base.name=name.trim()||"Untitled";
-  const type=prompt("Type: habit/task/event/birthday",base.type)||base.type;
-  base.type=["habit","task","event","birthday"].includes(type)?type:"habit";
-  const icon=prompt("Emoji icon",base.icon)||base.icon;
-  base.icon=icon;
-  if(["task","event","birthday"].includes(base.type)){
-    const td=prompt("Date (YYYY-MM-DD)",base.targetDate)||base.targetDate;
-    base.targetDate=td;
-  }else{
-    const freqStr=prompt("Frequency days (0-6 comma, blank=daily)",base.frequency?base.frequency.join(","):"");
-    base.frequency=freqStr?freqStr.split(",").map(x=>parseInt(x.trim())).filter(x=>x>=0&&x<=6):[0,1,2,3,4,5,6];
+
+  const name = prompt("Name", base.name);
+  if (name === null) return;
+  base.name = name.trim() || "Untitled";
+
+  const type = prompt("Type: habit/task/event/birthday", base.type) || base.type;
+  base.type = ["habit","task","event","birthday"].includes(type) ? type : "habit";
+
+  const icon = prompt("Emoji icon", base.icon) || base.icon;
+  base.icon = icon;
+
+  if (["task","event","birthday"].includes(base.type)) {
+    const td = prompt("Date (YYYY-MM-DD)", base.targetDate) || base.targetDate;
+    base.targetDate = td;
+  } else {
+    const freqStr = prompt("Frequency days (0-6 comma)", base.frequency.join(",")) || "";
+    base.frequency = freqStr
+      ? freqStr.split(",").map((x) => parseInt(x.trim())).filter((x) => x >= 0 && x <= 6)
+      : [0,1,2,3,4,5,6];
   }
-  const goalStr=prompt("Monthly goal (blank=none)",base.monthlyGoal??"");
-  base.monthlyGoal=goalStr?(parseInt(goalStr)||null):null;
-  const timer=confirm("Use focus timer? OK=yes, Cancel=no");
-  base.useTimer=timer;
-  if(h){
-    const idx=store.habits.findIndex(x=>x.id===h.id);
-    store.habits[idx]=base;
-  }else store.habits.push(base);
-  store.habits.forEach((hh,i)=>hh.order=i);
-  save();render();
-};
-const archiveHabit=h=>{
-  if(confirm("Archive this item?")){
-    h.archived=true;save();render();
+
+  const goal = prompt("Monthly goal (blank=none)", base.monthlyGoal ?? "");
+  base.monthlyGoal = goal ? parseInt(goal) || null : null;
+
+  base.useTimer = confirm("Use focus timer?");
+
+  if (h) {
+    const idx = store.habits.findIndex((x) => x.id === h.id);
+    store.habits[idx] = base;
+  } else {
+    store.habits.push(base);
   }
+
+  store.habits.forEach((hh, i) => (hh.order = i));
+  save();
+  render();
 };
 
-let timerId=null,timerRemaining=0,timerHabitId=null,timerDate=null;
-const startTimer=(habitId,date)=>{
-  const h=store.habits.find(x=>x.id===habitId);
-  timerHabitId=habitId;timerDate=date;timerRemaining=25*60;
+/* -------------------------------------------------------
+   TIMER
+------------------------------------------------------- */
+let timerId = null;
+let timerRemaining = 0;
+let timerHabitId = null;
+let timerDate = null;
+
+const startTimer = (id, date) => {
+  const h = store.habits.find((x) => x.id === id);
+  timerHabitId = id;
+  timerDate = date;
+  timerRemaining = 25 * 60;
+
   document.getElementById("timerOverlay").classList.remove("hidden");
-  document.getElementById("timerLabel").innerHTML=`<span class="text-xl mr-1">${h?.icon||"⏱"}</span>${h?.name||"Focus"}`;
+  document.getElementById("timerLabel").textContent = `${h.icon} ${h.name}`;
+
   updateTimerDisplay();
-  if(timerId)clearInterval(timerId);
-  timerId=setInterval(()=>{
+
+  if (timerId) clearInterval(timerId);
+  timerId = setInterval(() => {
     timerRemaining--;
-    if(timerRemaining<=0){
-      clearInterval(timerId);timerId=null;
-      addCompletion(timerDate,timerHabitId);save();render();beep();closeTimer();
-    }else updateTimerDisplay();
-  },1000);
+    if (timerRemaining <= 0) {
+      clearInterval(timerId);
+      timerId = null;
+      addCompletion(timerDate, timerHabitId);
+      save();
+      render();
+      closeTimer();
+    } else updateTimerDisplay();
+  }, 1000);
 };
-const updateTimerDisplay=()=>{
-  const m=Math.floor(timerRemaining/60).toString().padStart(2,"0");
-  const s=(timerRemaining%60).toString().padStart(2,"0");
-  document.getElementById("timerTime").textContent=`${m}:${s}`;
+
+const updateTimerDisplay = () => {
+  const m = Math.floor(timerRemaining / 60).toString().padStart(2, "0");
+  const s = (timerRemaining % 60).toString().padStart(2, "0");
+  document.getElementById("timerTime").textContent = `${m}:${s}`;
 };
-const closeTimer=()=>{
+
+const closeTimer = () => {
   document.getElementById("timerOverlay").classList.add("hidden");
-  if(timerId){clearInterval(timerId);timerId=null;}
-};
-const beep=()=>{
-  try{
-    const ctx=new (window.AudioContext||window.webkitAudioContext)();
-    const o=ctx.createOscillator(),g=ctx.createGain();
-    o.type="sine";o.frequency.value=880;o.connect(g);g.connect(ctx.destination);
-    o.start();g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.4);
-    setTimeout(()=>ctx.close(),500);
-  }catch(e){alert("Done!");}
-};
-const exportJson=()=>{
-  const blob=new Blob([JSON.stringify(store)],{type:"application/json"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);a.download="habit_os_backup.json";a.click();
-  URL.revokeObjectURL(a.href);
-};
-const importJson=()=>{
-  const inp=document.createElement("input");
-  inp.type="file";inp.accept=".json";
-  inp.onchange=e=>{
-    const f=e.target.files[0];if(!f)return;
-    const r=new FileReader();
-    r.onload=ev=>{
-      try{
-        const data=JSON.parse(ev.target.result);
-        store=data;save();setTheme();render();
-      }catch{alert("Invalid file");}
-    };
-    r.readAsText(f);
-  };
-  inp.click();
-};
-const toggleTheme=()=>{store.settings.theme=store.settings.theme==="dark"?"light":"dark";save();setTheme();render();};
-const toggleVacation=()=>{store.settings.vacationMode=!store.settings.vacationMode;save();render();};
-const toggleManualSort=()=>{store.view.manualSort=!store.view.manualSort;save();render();};
-const moveHabit=(id,dir)=>{
-  const idx=store.habits.findIndex(h=>h.id===id);if(idx<0)return;
-  const j=idx+dir;if(j<0||j>=store.habits.length)return;
-  const tmp=store.habits[idx];store.habits[idx]=store.habits[j];store.habits[j]=tmp;
-  store.habits.forEach((h,i)=>h.order=i);save();render();
+  if (timerId) {
+    clearInterval(timerId);
+    timerId = null;
+  }
 };
 
-const render=()=>{
-  const app=document.getElementById("app");
-  const selDate=store.view.selectedDate;
-  const stats=dayCompletionStats(selDate);
-  const ratio=Math.round(stats.ratio*100);
-  const last30=last30Stats();
-  const month=monthDays(store.view.monthOffset);
-  const days=month.cells;
-  const monthLabel=fmtMonthYear(month.monthDate);
-  const week=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+document.getElementById("timerCancel").onclick = closeTimer;
 
-  const sidebarHabits=store.habits.filter(h=>!h.archived).slice().sort((a,b)=>store.view.manualSort?(a.order||0)-(b.order||0):a.name.localeCompare(b.name));
-  const agendaItems=store.habits.filter(h=>isDue(h,selDate)&&!h.archived).slice().sort((a,b)=>store.view.manualSort?(a.order||0)-(b.order||0):a.name.localeCompare(b.name));
+/* -------------------------------------------------------
+   RENDER
+------------------------------------------------------- */
+const render = () => {
+  const app = document.getElementById("app");
+  const sel = store.view.selectedDate;
+  const month = monthDays(store.view.monthOffset);
+  const days = month.cells;
+  const monthLabel = fmtMonthYear(month.monthDate);
 
-  const barHtml=last30.map(d=>{
-    const pct=d.ratio*100;let cls="bg-slate-500";
-    if(pct===100)cls="bg-emerald-500";
-    else if(pct>50)cls="bg-amber-400";
-    const h=6+10*(pct/100);
-    return `<div class="flex-1 flex items-end justify-center"><div title="${d.date} ${Math.round(pct)}%" class="w-2 rounded-full ${cls}" style="height:${h}px"></div></div>`;
-  }).join("");
+  const items = dueItems(sel);
 
-  const calHead=week.map(w=>`<div class="text-[10px] text-slate-400 uppercase tracking-[0.18em] text-center">${w}</div>`).join("");
+  /* Sidebar list */
+  const sidebarList = store.habits
+    .filter((h) => !h.archived)
+    .sort((a, b) => store.view.manualSort ? a.order - b.order : a.name.localeCompare(b.name))
+    .map(
+      (h) => `
+      <button class="w-full text-left px-3 py-2 rounded-xl hover:bg-gray-100 flex items-center gap-2"
+              data-edit="${h.id}">
+        <span class="text-lg">${h.icon}</span>
+        <span class="text-sm">${h.name}</span>
+      </button>`
+    )
+    .join("");
 
-  const calCells=days.map(d=>{
-    if(!d)return`<div></div>`;
-    const ds=ymd(d),isToday=ds===todayStr();
-    const dots=[];
-    store.habits.forEach(h=>{
-      if(h.type==="event"&&isDue(h,ds))dots.push(`<span class="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-sm"></span>`);
-      if(h.type==="birthday"&&isDue(h,ds))dots.push(`<span class="w-1.5 h-1.5 rounded-full bg-pink-400 shadow-sm"></span>`);
-    });
-    const st=dayCompletionStats(ds),pct=Math.round(st.ratio*100);
-    let barCls="bg-slate-500";
-    if(pct===100)barCls="bg-emerald-500";
-    else if(pct>50)barCls="bg-amber-400";
-    const bar=st.total?`<div class="mt-1 h-1.5 w-full rounded-full bg-slate-800 overflow-hidden"><div class="h-full ${barCls}" style="width:${pct}%"></div></div>`:"";
-    return `<button class="text-left rounded-xl border ${isToday?"border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.8)]":"border-slate-700"} bg-slate-900/70 hover:border-indigo-400 hover:bg-slate-900 transition p-1.5 flex flex-col gap-1" data-date="${ds}">
-      <div class="flex items-center justify-between text-[11px]">
-        <span class="font-semibold">${d.getDate()}</span>
-      </div>
-      <div class="flex gap-1">${dots.join("")}</div>
-      ${bar}
-    </button>`;
-  }).join("");
+  /* Calendar grid */
+  const week = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const calHead = week
+    .map((w) => `<div class="text-xs text-gray-500 text-center">${w}</div>`)
+    .join("");
 
-  const sidebarHtml=sidebarHabits.map(h=>{
-    const doneCount=monthlyCount(h),streak=streakForHabit(h);
-    const pct=h.monthlyGoal?Math.min(100,Math.round((doneCount/(h.monthlyGoal||1))*100)):0;
-    let bar="",meta="";
-    if(h.monthlyGoal){
-      let cls="bg-slate-500";
-      if(pct===100)cls="bg-emerald-500";
-      else if(pct>50)cls="bg-amber-400";
-      bar=`<div class="mt-1 h-1.5 w-full rounded-full bg-slate-800 overflow-hidden"><div class="h-full ${cls}" style="width:${pct}%"></div></div>`;
-      meta=`${doneCount}/${h.monthlyGoal} this month`;
-    }else meta=`Streak: ${streak} days`;
-    const typeBadge=h.type==="habit"?"bg-indigo-500/10 text-indigo-300 border-indigo-400/60":
-                     h.type==="task"?"bg-emerald-500/10 text-emerald-300 border-emerald-400/60":
-                     h.type==="event"?"bg-sky-500/10 text-sky-300 border-sky-400/60":
-                     "bg-pink-500/10 text-pink-300 border-pink-400/60";
-    return `<div class="rounded-2xl border border-slate-700 bg-slate-900/80 shadow-lg px-3 py-2.5 flex items-center justify-between gap-3">
-      <div class="flex items-center gap-3 flex-1">
-        <div class="w-8 h-8 rounded-2xl bg-slate-800 flex items-center justify-center text-lg shadow-inner">${h.icon||"•"}</div>
-        <div class="flex-1">
-          <div class="flex items-center gap-2 text-[13px]">
-            <span class="font-semibold">${h.name}</span>
-            <span class="px-2 py-0.5 rounded-full border text-[10px] ${typeBadge}">${h.type}</span>
+  const calCells = days
+    .map((d) => {
+      if (!d) return `<div></div>`;
+      const ds = ymd(d);
+      const isSel = ds === sel;
+      return `
+        <button data-date="${ds}"
+          class="rounded-xl px-2 py-2 text-sm text-center hover:bg-gray-100
+                 ${isSel ? "bg-indigo-100 border border-indigo-300" : "border border-transparent"}">
+          ${d.getDate()}
+        </button>`;
+    })
+    .join("");
+
+  /* Heatmap */
+  const heat = last30()
+    .map((d) => {
+      const pct = d.total ? d.done / d.total : 0;
+      const color =
+        pct === 1 ? "bg-indigo-500" :
+        pct >= 0.5 ? "bg-indigo-300" :
+        pct > 0 ? "bg-indigo-200" :
+        "bg-gray-200";
+      return `<div class="w-3 h-3 rounded-md ${color}"></div>`;
+    })
+    .join("");
+
+  /* Day details */
+  const agenda = items.length
+    ? items
+        .map(
+          (h) => `
+        <div class="glass border border-border rounded-xl px-4 py-3 shadow-soft flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="text-xl">${h.icon}</div>
+            <div>
+              <div class="text-sm font-medium">${h.name}</div>
+              <div class="text-xs text-gray-500">${h.type}</div>
+            </div>
           </div>
-          <div class="text-[11px] text-slate-400 mt-0.5">${meta}</div>
-          ${bar}
-        </div>
-      </div>
-      <div class="flex flex-col gap-1 items-end">
-        <button class="text-[11px] px-2 py-1 rounded-full border border-slate-600 hover:border-indigo-400 hover:bg-slate-800" data-edit="${h.id}">Edit</button>
-        ${store.view.manualSort?`<div class="flex flex-col gap-1">
-          <button class="text-[11px] px-2 py-0.5 rounded-full border border-slate-700 hover:border-slate-400" data-up="${h.id}">↑</button>
-          <button class="text-[11px] px-2 py-0.5 rounded-full border border-slate-700 hover:border-slate-400" data-down="${h.id}">↓</button>
-        </div>`:""}
-      </div>
-    </div>`;
-  }).join("")||`<div class="text-xs text-slate-400 px-1 py-2">No items yet. Add one to begin.</div>`;
+          ${
+            h.useTimer
+              ? `<button data-timer="${h.id}" class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 text-xs">Start</button>`
+              : ""
+          }
+        </div>`
+        )
+        .join("")
+    : `
+      <div class="flex flex-col items-center justify-center text-center py-12 text-gray-400">
+        <div class="text-5xl mb-3">🎈</div>
+        <div class="text-sm">Nothing scheduled</div>
+      </div>`;
 
-  const agendaHtml=agendaItems.map(h=>{
-    const done=(store.completions[selDate]||[]).includes(h.id);
-    const typeLabel=h.type==="task"?"Task":h.type==="habit"?"Routine":h.type==="event"?"Event":"Birthday";
-    const chipCls=h.type==="habit"?"border-indigo-400/60 text-indigo-200":
-                  h.type==="task"?"border-emerald-400/60 text-emerald-200":
-                  h.type==="event"?"border-sky-400/60 text-sky-200":
-                  "border-pink-400/60 text-pink-200";
-    return `<div class="rounded-2xl border border-slate-700 bg-slate-900/80 shadow-lg px-3 py-2.5 flex items-center justify-between gap-3">
-      <button class="flex items-center gap-3 flex-1 text-left" data-toggle="${h.id}">
-        <div class="w-5 h-5 rounded-xl border ${done?"border-emerald-400 bg-emerald-500/20 shadow":"border-slate-600 bg-slate-900"} flex items-center justify-center text-[11px]">
-          ${done?"✓":""}
-        </div>
+  /* Full layout */
+  app.innerHTML = `
+    <div class="grid grid-cols-1 md:grid-cols-[260px,1fr,320px] gap-6">
+
+      <!-- LEFT SIDEBAR -->
+      <div class="glass border border-border rounded-2xl shadow-soft p-4 flex flex-col gap-4">
         <div>
-          <div class="text-[13px] font-semibold">${h.name}</div>
-          <div class="text-[11px] text-slate-400">${typeLabel}</div>
+          <div class="text-lg font-semibold">Habit OS</div>
+          <div class="text-xs text-gray-500">Local Mode</div>
         </div>
-      </button>
-      <div class="flex flex-col gap-1 items-end">
-        ${h.useTimer&&["habit","task"].includes(h.type)?`<button class="text-[11px] px-2 py-1 rounded-full border border-slate-600 hover:border-emerald-400 hover:bg-slate-800" data-timer="${h.id}">▶ Focus</button>`:""}
-        <span class="px-2 py-0.5 rounded-full border text-[10px] ${chipCls}">${h.type}</span>
-      </div>
-    </div>`;
-  }).join("")||`<div class="text-xs text-slate-400 px-1 py-2">Nothing due on this day.</div>`;
 
-  app.innerHTML=`
-  <div class="rounded-3xl border border-slate-700 bg-slate-900/80 shadow-2xl backdrop-blur-xl p-4 md:p-5 flex flex-col gap-4">
-    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-      <div>
-        <div class="flex items-center gap-2">
-          <div class="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-400 to-rose-400 shadow-lg"></div>
-          <h1 class="text-sm md:text-base font-semibold tracking-[0.18em] uppercase text-slate-200">Habit OS Stable Pro</h1>
+        <div class="text-xs text-gray-500">Backup ID</div>
+        <div class="text-sm font-mono bg-gray-100 px-3 py-2 rounded-xl border border-gray-200">
+          user_${uid().slice(0, 6)}
         </div>
-        <div class="text-[11px] text-slate-400 mt-1">Focused day: <span class="text-slate-100">${selDate}</span></div>
+
+        <div class="mt-4 text-xs text-gray-500">All Items</div>
+        <div class="flex flex-col gap-1 max-h-[400px] overflow-y-auto pr-1">
+          ${sidebarList}
+        </div>
+
+        <button id="addHabit"
+          class="mt-auto px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm hover:bg-indigo-400">
+          + Add Item
+        </button>
       </div>
-      <div class="flex flex-wrap gap-2 items-center justify-end text-[11px]">
-        <span class="px-3 py-1 rounded-full border border-slate-700 bg-slate-900/80 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 shadow"></span>
-          Today ${ratio}% · ${stats.done}/${stats.total}
-        </span>
-        <span class="px-3 py-1 rounded-full border border-slate-700 bg-slate-900/80">Vacation: ${store.settings.vacationMode?"On":"Off"}</span>
-        <span class="px-3 py-1 rounded-full border border-slate-700 bg-slate-900/80">Theme: ${store.settings.theme==="dark"?"Dark":"Light"}</span>
-        <button id="addHabit" class="px-3 py-1 rounded-full bg-indigo-500 hover:bg-indigo-400 text-xs font-medium shadow">+ New Item</button>
-        <button id="toggleSort" class="px-3 py-1 rounded-full border border-slate-700 hover:border-indigo-400 text-xs">${store.view.manualSort?"Manual sort":"Auto sort"}</button>
-        <button id="themeBtn" class="px-3 py-1 rounded-full border border-slate-700 hover:border-indigo-400 text-xs">Theme</button>
-        <button id="vacBtn" class="px-3 py-1 rounded-full border border-slate-700 hover:border-indigo-400 text-xs">Vacation</button>
-        <button id="exportBtn" class="px-3 py-1 rounded-full border border-slate-700 hover:border-indigo-400 text-xs">Export</button>
-        <button id="importBtn" class="px-3 py-1 rounded-full border border-slate-700 hover:border-indigo-400 text-xs">Import</button>
+
+      <!-- CENTER CALENDAR -->
+      <div class="flex flex-col gap-4">
+        <div class="glass border border-border rounded-2xl shadow-soft p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="text-sm font-medium">${monthLabel}</div>
+            <div class="flex items-center gap-2">
+              <button id="prevMonth" class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 text-xs">◀</button>
+              <button id="todayBtn" class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 text-xs">Today</button>
+              <button id="nextMonth" class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 text-xs">▶</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-7 gap-2 mb-2">${calHead}</div>
+          <div class="grid grid-cols-7 gap-2">${calCells}</div>
+        </div>
+
+        <div class="glass border border-border rounded-2xl shadow-soft p-4">
+          <div class="text-xs text-gray-500 mb-2">Consistency</div>
+          <div class="grid grid-cols-30 gap-1">${heat}</div>
+        </div>
       </div>
-    </header>
-    <div class="grid grid-cols-1 md:grid-cols-[1.1fr,1.2fr,1.1fr] gap-3 md:gap-4">
-      <section class="rounded-2xl border border-slate-700 bg-slate-900/80 shadow-xl p-3 flex flex-col gap-2">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-300">Registry</h2>
-            <p class="text-[10px] text-slate-500 mt-0.5">Habits · Tasks · Events · Birthdays</p>
-          </div>
+
+      <!-- RIGHT DAY VIEW -->
+      <div class="glass border border-border rounded-2xl shadow-soft p-4 flex flex-col gap-4">
+        <div>
+          <div class="text-lg font-semibold">${sel}</div>
+          <div class="text-xs text-gray-500">Your day</div>
         </div>
-        <div class="mt-2 space-y-2 overflow-y-auto max-h-[420px] pr-1">${sidebarHtml}</div>
-      </section>
-      <section class="rounded-2xl border border-slate-700 bg-slate-900/80 shadow-xl p-3 flex flex-col gap-2">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-300">Calendar</h2>
-            <p class="text-[10px] text-slate-500 mt-0.5">${monthLabel}</p>
-          </div>
-          <div class="flex items-center gap-1 text-[11px]">
-            <button id="prevMonth" class="px-2 py-1 rounded-full border border-slate-700 hover:border-indigo-400">◀</button>
-            <button id="todayBtn" class="px-2 py-1 rounded-full border border-slate-700 hover:border-indigo-400">Today</button>
-            <button id="nextMonth" class="px-2 py-1 rounded-full border border-slate-700 hover:border-indigo-400">▶</button>
-          </div>
+
+        <div class="flex flex-col gap-3 max-h-[420px] overflow-y-auto pr-1">
+          ${agenda}
         </div>
-        <div class="mt-2 grid grid-cols-7 gap-1.5">
-          ${calHead}
-          ${calCells}
-        </div>
-        <div class="mt-3">
-          <div class="flex items-center justify-between text-[10px] text-slate-500 mb-1">
-            <span>Smart Metrics</span><span>Last 30 days</span>
-          </div>
-          <div class="flex gap-1 h-16">${barHtml}</div>
-        </div>
-      </section>
-      <section class="rounded-2xl border border-slate-700 bg-slate-900/80 shadow-xl p-3 flex flex-col gap-2">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-300">Agenda</h2>
-            <p class="text-[10px] text-slate-500 mt-0.5">Due on ${selDate}</p>
-          </div>
-        </div>
-        <div class="mt-2 space-y-2 overflow-y-auto max-h-[420px] pr-1">${agendaHtml}</div>
-      </section>
+
+        <button id="addHabit2"
+          class="mt-auto px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm hover:bg-indigo-400">
+          + Add Item
+        </button>
+      </div>
+
     </div>
-  </div>
-  <div id="timerOverlay" class="fixed inset-0 hidden items-center justify-center bg-black/70 backdrop-blur-sm z-50">
-    <div class="bg-slate-900/95 border border-slate-700 rounded-3xl shadow-2xl px-6 py-5 flex flex-col items-center gap-3 max-w-xs w-full mx-4">
-      <div class="text-[11px] tracking-[0.18em] uppercase text-slate-400">Focus Session</div>
-      <div id="timerTime" class="text-4xl font-semibold tracking-[0.18em] tabular-nums">25:00</div>
-      <div id="timerLabel" class="text-sm text-slate-200 flex items-center gap-2"></div>
-      <div class="flex gap-2 mt-2">
-        <button id="timerCancel" class="px-4 py-1.5 rounded-full border border-slate-600 hover:border-rose-400 text-xs">Cancel</button>
-      </div>
-    </div>
-  </div>
   `;
 
-  document.getElementById("addHabit").onclick=()=>openHabitEditor();
-  document.getElementById("themeBtn").onclick=toggleTheme;
-  document.getElementById("vacBtn").onclick=toggleVacation;
-  document.getElementById("exportBtn").onclick=exportJson;
-  document.getElementById("importBtn").onclick=importJson;
-  document.getElementById("toggleSort").onclick=toggleManualSort;
-  document.getElementById("prevMonth").onclick=()=>{store.view.monthOffset--;save();render();};
-  document.getElementById("nextMonth").onclick=()=>{store.view.monthOffset++;save();render();};
-  document.getElementById("todayBtn").onclick=()=>{store.view.selectedDate=todayStr();store.view.monthOffset=0;save();render();};
-  document.getElementById("timerCancel").onclick=closeTimer;
+  /* Event bindings */
+  document.getElementById("addHabit").onclick = () => openEditor();
+  document.getElementById("addHabit2").onclick = () => openEditor();
 
-  document.querySelectorAll("[data-date]").forEach(el=>{
-    el.onclick=()=>{
-      const d=el.getAttribute("data-date");if(!d)return;
-      store.view.selectedDate=d;save();render();
+  document.querySelectorAll("[data-edit]").forEach((el) => {
+    el.onclick = () => {
+      const id = el.getAttribute("data-edit");
+      const h = store.habits.find((x) => x.id === id);
+      openEditor(h);
     };
   });
-  document.querySelectorAll("[data-edit]").forEach(el=>{
-    el.onclick=e=>{
-      e.stopPropagation();
-      const id=el.getAttribute("data-edit");
-      const h=store.habits.find(x=>x.id===id);if(!h)return;
-      const action=prompt("Edit or archive? (e/a)","e");
-      if(action==="a")archiveHabit(h);else openHabitEditor(h);
-    };
-  });
-  document.querySelectorAll("[data-up]").forEach(el=>{
-    el.onclick=e=>{e.stopPropagation();moveHabit(el.getAttribute("data-up"),-1);};
-  });
-  document.querySelectorAll("[data-down]").forEach(el=>{
-    el.onclick=e=>{e.stopPropagation();moveHabit(el.getAttribute("data-down"),1);};
-  });
-  document.querySelectorAll("[data-toggle]").forEach(el=>{
-    el.onclick=()=>{
-      const id=el.getAttribute("data-toggle"),date=selDate;
-      const done=(store.completions[date]||[]).includes(id);
-      if(done)removeCompletion(date,id);else addCompletion(date,id);
-      save();render();
-    };
-  });
-  document.querySelectorAll("[data-timer]").forEach(el=>{
-    el.onclick=e=>{e.stopPropagation();startTimer(el.getAttribute("data-timer"),selDate);};
-  });
-};
 
-if(!store.habits.length){
-  store.habits.push({
-    id:uid(),name:"Daily Planning",type:"habit",icon:"🧠",
-    targetDate:todayStr(),frequency:[1,2,3,4,5],
-    monthlyGoal:20,useTimer:true,archived:false,order:0
+  document.querySelectorAll("[data-date]").forEach((el) => {
+    el.onclick = () => {
+      store.view.selectedDate = el.getAttribute("data-date");
+      save();
+      render();
+    };
   });
-  save();
-}
-render();
-</script>
-</body>
-</html>
+
+  document.getElementById("prevMonth").onclick =
