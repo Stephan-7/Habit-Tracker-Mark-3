@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Habit OS - Final</title>
+    <title>Habit OS - Final Polish</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -98,12 +98,9 @@
         };
 
         // --- CHART COMPONENTS ---
-        
-        // YEAR CHART (HEATMAP): Shows Jan 1 to Dec 31 of current year
         const YearHeatmap = ({ completions, habits }) => {
             const heatmapRef = useRef(null);
             
-            // Scroll to current month on load
             useEffect(() => { 
                 if (heatmapRef.current) {
                     const scrollRatio = new Date().getMonth() / 12;
@@ -116,11 +113,9 @@
                 const startOfYear = new Date(year, 0, 1);
                 const endOfYear = new Date(year, 11, 31);
                 
-                // Group days into weeks for column layout
                 const grid = [];
                 let currentWeek = [];
                 
-                // Pad first week if year doesn't start on Sunday
                 for (let i = 0; i < startOfYear.getDay(); i++) {
                     currentWeek.push({ isPadding: true, key: `pad-${i}` });
                 }
@@ -133,19 +128,14 @@
                     const total = dueHabits.length;
                     const val = total === 0 ? 0 : (completedCount / total);
                     
-                    currentWeek.push({ 
-                        date: date, 
-                        key: k, 
-                        val: val, 
-                        isFuture: date > new Date() 
-                    });
+                    currentWeek.push({ date: date, key: k, val: val, isFuture: date > new Date() });
 
                     if (currentWeek.length === 7) {
                         grid.push(currentWeek);
                         currentWeek = [];
                     }
                 }
-                if (currentWeek.length > 0) grid.push(currentWeek); // Add partial last week
+                if (currentWeek.length > 0) grid.push(currentWeek);
                 
                 return grid;
             }, [completions, habits]);
@@ -166,7 +156,6 @@
             );
         };
 
-        // CONSISTENCY CHART (BAR): Shows Last 30 Days from Today
         const ConsistencyChart = ({ completions, habits }) => {
             const data = useMemo(() => {
                 const days = 30; 
@@ -174,20 +163,12 @@
                 const today = new Date();
                 
                 for (let i = days - 1; i >= 0; i--) {
-                    const d = new Date(); 
-                    d.setDate(today.getDate() - i); 
-                    const dateKey = formatDateKey(d);
-                    
+                    const d = new Date(); d.setDate(today.getDate() - i); const dateKey = formatDateKey(d);
                     const dueHabits = habits.filter(h => isHabitDueOnDate(h, d, dateKey));
                     const completedCount = (completions[dateKey] || []).filter(id => habits.some(h => h.id === id && isHabitDueOnDate(h, d, dateKey))).length;
                     const totalDue = dueHabits.length;
                     const value = totalDue === 0 ? 0 : (completedCount / totalDue);
-                    
-                    result.push({ 
-                        label: `${d.getMonth() + 1}/${d.getDate()}`, 
-                        fullDate: d.toLocaleDateString(), 
-                        value: value 
-                    });
+                    result.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, fullDate: d.toLocaleDateString(), value: value });
                 }
                 return result;
             }, [completions, habits]);
@@ -465,30 +446,6 @@
                 return (type === 'habit' && freq.includes(selectedDate.getDay()));
             }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
-            const renderCalendar = () => {
-                const days = []; for(let i=0; i<firstDay; i++) days.push(<div key={`empty-${i}`} className="h-full bg-gray-50/50 dark:bg-dark-900 border-b border-r border-gray-100 dark:border-dark-700"></div>);
-                for(let d=1; d<=daysInMonth; d++) {
-                    const date = new Date(year, month, d); const k = formatDateKey(date);
-                    const dayData = completions[k] || []; const isToday = k === todayKey; const isSelected = k === selectedDateKey;
-                    
-                    const dots = habits.filter(h => {
-                        if (h.isInbox) return false;
-                        const type = h.type; 
-                        if (type==='birthday' && isSameDayMonth(new Date(h.targetDate), date)) return true;
-                        if ((type==='task'||type==='event') && h.targetDate === k) return true;
-                        return false;
-                    }).map(h => h.type==='birthday'?'bg-pink-400':h.type==='event'?'bg-blue-400':'bg-gray-400').slice(0,3);
-
-                    days.push(
-                        <div key={d} onClick={() => setSelectedDate(date)} className={`h-16 md:h-24 p-1 md:p-2 border-b border-r border-gray-100 dark:border-dark-700 cursor-pointer relative transition-colors ${isSelected ? 'bg-indigo-50/60 dark:bg-indigo-900/20' : 'hover:bg-gray-50 dark:hover:bg-dark-800'}`}>
-                            <div className="flex justify-between items-center"><span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${isToday ? 'bg-indigo-600 text-white' : isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>{d}</span>{dayData.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>}</div>
-                            <div className="flex gap-1 mt-1 justify-end">{dots.map((col, idx) => <div key={idx} className={`w-1.5 h-1.5 rounded-full ${col}`}></div>)}</div>
-                        </div>
-                    );
-                }
-                return days;
-            };
-
             return (
                 <div className="flex flex-col md:flex-row h-screen overflow-hidden selection:bg-indigo-100 text-slate-800 dark:text-slate-200 font-sans">
                     {/* LEFT SIDEBAR */}
@@ -536,10 +493,35 @@
 
                         <div className="flex-1 overflow-auto min-h-0 relative">
                             {centerView === 'calendar' ? (
-                                <>
-                                    <div className="grid grid-cols-7 border-b border-gray-100 dark:border-dark-700 sticky top-0 bg-white/95 dark:bg-dark-900/95 z-20 text-center py-2 text-xs font-bold text-gray-400 uppercase">{DAYS_OF_WEEK.map(d => <div key={d}>{d}</div>)}</div>
-                                    <div className="grid grid-cols-7 auto-rows-fr h-full">{renderCalendar()}</div>
-                                </>
+                                <div className="h-full flex flex-col">
+                                    <div className="grid grid-cols-7 border-b border-gray-100 dark:border-dark-700 sticky top-0 bg-white/95 dark:bg-dark-900/95 z-20 text-center py-2 text-xs font-bold text-gray-400 uppercase">
+                                        {DAYS_OF_WEEK.map((d, i) => <div key={i}>{d}</div>)}
+                                    </div>
+                                    <div className="grid grid-cols-7 auto-rows-fr h-full">
+                                        {(() => {
+                                            const days = [];
+                                            for(let i=0; i<firstDay; i++) days.push(<div key={`empty-${i}`} className="h-full bg-gray-50/50 dark:bg-dark-900 border-b border-r border-gray-100 dark:border-dark-700"></div>);
+                                            for(let d=1; d<=daysInMonth; d++) {
+                                                const date = new Date(year, month, d); const k = formatDateKey(date);
+                                                const dayData = completions[k] || []; const isToday = k === todayKey; const isSelected = k === selectedDateKey;
+                                                const dots = habits.filter(h => {
+                                                    if (h.isInbox) return false;
+                                                    const type = h.type; 
+                                                    if (type==='birthday' && isSameDayMonth(new Date(h.targetDate), date)) return true;
+                                                    if ((type==='task'||type==='event') && h.targetDate === k) return true;
+                                                    return false;
+                                                }).map(h => h.type==='birthday'?'bg-pink-400':h.type==='event'?'bg-blue-400':'bg-gray-400').slice(0,3);
+                                                days.push(
+                                                    <div key={d} onClick={() => setSelectedDate(date)} className={`h-16 md:h-24 p-1 md:p-2 border-b border-r border-gray-100 dark:border-dark-700 cursor-pointer relative transition-colors ${isSelected ? 'bg-indigo-50/60 dark:bg-indigo-900/20' : 'hover:bg-gray-50 dark:hover:bg-dark-800'}`}>
+                                                        <div className="flex justify-between items-center"><span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${isToday ? 'bg-indigo-600 text-white' : isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>{d}</span>{dayData.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>}</div>
+                                                        <div className="flex gap-1 mt-1 justify-end">{dots.map((col, idx) => <div key={idx} className={`w-1.5 h-1.5 rounded-full ${col}`}></div>)}</div>
+                                                    </div>
+                                                );
+                                            }
+                                            return days;
+                                        })()}
+                                    </div>
+                                </div>
                             ) : (
                                 <div className="p-8 max-w-2xl mx-auto space-y-4 animate-fade-in">
                                     <div className="flex items-center justify-between mb-6">
