@@ -1,648 +1,461 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Habit OS Stable Pro</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif}
-    body{min-height:100vh;display:flex;align-items:stretch;justify-content:center;background:radial-gradient(circle at top,#1e293b 0,#020617 55%,#000 100%);color:#e5e7eb}
-    #app{width:100%;max-width:1100px;margin:16px;padding:14px;border-radius:18px;background:rgba(15,23,42,.96);backdrop-filter:blur(18px);box-shadow:0 20px 50px rgba(0,0,0,.7);display:flex;flex-direction:column;gap:10px;border:1px solid rgba(148,163,184,.3)}
-    header{display:flex;justify-content:space-between;align-items:center;gap:10px}
-    h1{font-size:20px;font-weight:650;letter-spacing:.04em;display:flex;align-items:center;gap:6px}
-    h1 span{display:inline-flex;width:18px;height:18px;border-radius:999px;background:radial-gradient(circle,#facc15,#f97316);box-shadow:0 0 10px rgba(250,204,21,.7)}
-    small{opacity:.7;font-size:11px}
-    button{border:none;border-radius:999px;padding:4px 10px;font-size:11px;cursor:pointer;background:#111827;color:#e5e7eb;display:inline-flex;align-items:center;gap:4px;transition:.15s all}
-    button.primary{background:linear-gradient(135deg,#4f46e5,#6366f1);box-shadow:0 0 0 1px rgba(129,140,248,.6),0 10px 25px rgba(79,70,229,.6)}
-    button.primary:hover{transform:translateY(-1px);box-shadow:0 0 0 1px rgba(191,219,254,.7),0 14px 32px rgba(79,70,229,.8)}
-    button.ghost{background:transparent;border:1px solid rgba(148,163,184,.5)}
-    button.ghost:hover{background:rgba(15,23,42,.9)}
-    button.danger{background:linear-gradient(135deg,#b91c1c,#ef4444)}
-    .badge{font-size:10px;border-radius:999px;padding:2px 7px;background:#020617;border:1px solid rgba(148,163,184,.5)}
-    .badge.habit{border-color:#6366f1;color:#c7d2fe}
-    .badge.task{border-color:#10b981;color:#a7f3d0}
-    .badge.event{border-color:#3b82f6;color:#bfdbfe}
-    .badge.birthday{border-color:#ec4899;color:#f9a8d4}
-    .layout{display:grid;grid-template-columns:1.1fr 1.2fr 1.1fr;gap:10px}
-    .col{border-radius:14px;padding:9px;background:linear-gradient(135deg,rgba(15,23,42,.98),rgba(15,23,42,.94));border:1px solid rgba(55,65,81,.9);box-shadow:0 12px 28px rgba(15,23,42,.9);display:flex;flex-direction:column;gap:8px}
-    .col h2{font-size:12px;font-weight:600;display:flex;justify-content:space-between;align-items:center;letter-spacing:.08em;text-transform:uppercase;color:#cbd5f5}
-    .sub{font-size:10px;opacity:.7}
-    .list{display:flex;flex-direction:column;gap:6px;overflow:auto;max-height:420px;padding-right:2px}
-    .card{border-radius:12px;padding:8px 9px;background:rgba(15,23,42,.98);border:1px solid rgba(55,65,81,.9);display:flex;align-items:center;gap:8px;justify-content:space-between;font-size:12px;box-shadow:0 10px 22px rgba(15,23,42,.9);transition:.15s all}
-    .card:hover{transform:translateY(-1px);border-color:#6366f1;box-shadow:0 14px 30px rgba(15,23,42,1)}
-    .card-main{display:flex;align-items:center;gap:8px;flex:1}
-    .icon{width:24px;height:24px;border-radius:999px;background:radial-gradient(circle at 30% 0,#facc15,#4f46e5);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 0 0 1px #020617,0 0 12px rgba(129,140,248,.8)}
-    .meta{font-size:10px;opacity:.8;margin-top:1px}
-    .progress-shell{width:100%;height:5px;border-radius:999px;background:#020617;margin-top:4px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(30,64,175,.7)}
-    .progress-bar{height:100%;border-radius:999px;background:linear-gradient(90deg,#22c55e,#4ade80);transition:width .25s}
-    .progress-bar.orange{background:linear-gradient(90deg,#f97316,#facc15)}
-    .progress-bar.gray{background:linear-gradient(90deg,#4b5563,#9ca3af)}
-    .top-metrics{display:flex;gap:6px;font-size:11px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-    .top-metrics span{padding:4px 9px;border-radius:999px;background:#020617;border:1px solid rgba(55,65,81,.9);display:inline-flex;align-items:center;gap:4px}
-    .pill-dot{width:7px;height:7px;border-radius:999px;background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.9)}
-    .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:11px;margin-top:4px}
-    .day-head{opacity:.6;text-align:center;margin-bottom:2px;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
-    .day{border-radius:9px;padding:4px 4px 6px;background:#020617;border:1px solid rgba(31,41,55,1);min-height:56px;display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:.15s all}
-    .day:hover{border-color:#6366f1;box-shadow:0 8px 18px rgba(15,23,42,.9)}
-    .day.today{border-color:#facc15;box-shadow:0 0 0 1px rgba(250,204,21,.9),0 0 14px rgba(250,204,21,.6)}
-    .day-num{font-size:11px;font-weight:600}
-    .dots{display:flex;gap:3px;margin-top:2px}
-    .dot{width:7px;height:7px;border-radius:999px}
-    .dot.blue{background:#3b82f6;box-shadow:0 0 8px rgba(59,130,246,.9)}
-    .dot.pink{background:#ec4899;box-shadow:0 0 8px rgba(236,72,153,.9)}
-    .day-progress{margin-top:auto}
-    .agenda-empty{font-size:11px;opacity:.6;padding:8px 4px}
-    .checkbox{width:16px;height:16px;border-radius:6px;border:1px solid rgba(75,85,99,1);display:flex;align-items:center;justify-content:center;font-size:11px;background:#020617}
-    .checkbox.done{background:radial-gradient(circle at 30% 0,#22c55e,#4ade80);border-color:#22c55e;box-shadow:0 0 10px rgba(34,197,94,.9)}
-    .checkbox span{transform:translateY(-1px)}
-    .chip{font-size:10px;padding:3px 7px;border-radius:999px;background:#020617;border:1px solid rgba(55,65,81,1)}
-    .chip.habit{border-color:#6366f1;color:#c7d2fe}
-    .chip.task{border-color:#10b981;color:#a7f3d0}
-    .chip.event{border-color:#3b82f6;color:#bfdbfe}
-    .chip.birthday{border-color:#ec4899;color:#f9a8d4}
-    .bar-row{display:flex;gap:2px;margin-top:8px;padding:0 2px}
-    .bar-cell{flex:1;height:18px;display:flex;align-items:flex-end;justify-content:center}
-    .bar{width:60%;border-radius:999px;transition:height .25s,background .25s}
-    .bar.green{background:linear-gradient(180deg,#22c55e,#16a34a);box-shadow:0 0 8px rgba(34,197,94,.9)}
-    .bar.orange{background:linear-gradient(180deg,#f97316,#facc15);box-shadow:0 0 8px rgba(249,115,22,.9)}
-    .bar.gray{background:linear-gradient(180deg,#4b5563,#9ca3af)}
-    .controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:11px}
-    .controls-left{display:flex;gap:4px;align-items:center}
-    .controls-right{opacity:.7}
-    input,select{background:#020617;border-radius:999px;border:1px solid rgba(75,85,99,1);color:#e5e7eb;font-size:11px;padding:4px 8px;outline:none}
-    input:focus,select:focus{border-color:#6366f1;box-shadow:0 0 0 1px rgba(129,140,248,.7)}
-    #timerOverlay{position:fixed;inset:0;background:rgba(15,23,42,.96);display:none;align-items:center;justify-content:center;z-index:50}
-    .timer-box{border-radius:20px;padding:22px 24px;background:linear-gradient(135deg,rgba(15,23,42,.98),rgba(15,23,42,.96));border:1px solid rgba(148,163,184,.4);box-shadow:0 24px 60px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:12px;align-items:center;min-width:240px}
-    .timer-label{font-size:13px;opacity:.8;letter-spacing:.12em;text-transform:uppercase}
-    .timer-time{font-size:42px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.08em}
-    .timer-name{font-size:14px;opacity:.9;display:flex;align-items:center;gap:6px}
-    .timer-name span{font-size:18px}
-    .timer-actions{display:flex;gap:8px;margin-top:4px}
-    @media(max-width:960px){#app{margin:8px;padding:10px}.layout{grid-template-columns:1fr}.list{max-height:260px}}
-    .light body{background:radial-gradient(circle at top,#e5e7eb,#cbd5f5 40%,#94a3b8 100%);color:#020617}
-    .light #app{background:linear-gradient(135deg,#f9fafb,#e5e7eb);border-color:rgba(148,163,184,.5);box-shadow:0 20px 50px rgba(15,23,42,.25)}
-    .light .col{background:linear-gradient(135deg,#f9fafb,#e5e7eb);border-color:rgba(148,163,184,.7);box-shadow:0 12px 28px rgba(148,163,184,.6)}
-    .light .card{background:linear-gradient(135deg,#f9fafb,#e5e7eb);border-color:rgba(148,163,184,.8);box-shadow:0 10px 22px rgba(148,163,184,.6)}
-    .light .card:hover{border-color:#4f46e5;box-shadow:0 14px 30px rgba(129,140,248,.7)}
-    .light .day{background:#f9fafb;border-color:#d1d5db}
-    .light .checkbox{background:#f9fafb;border-color:#9ca3af}
-    .light button{background:#e5e7eb;color:#020617}
-    .light button.ghost{background:transparent;border-color:rgba(148,163,184,.8)}
-    .light button.primary{background:linear-gradient(135deg,#4f46e5,#6366f1);color:#e5e7eb}
-    .light .badge{background:#e5e7eb;border-color:rgba(148,163,184,.9)}
-    .light .progress-shell{background:#e5e7eb}
-    .light .bar.gray{background:linear-gradient(180deg,#9ca3af,#d1d5db)}
-    .light .top-metrics span{background:#e5e7eb;border-color:rgba(148,163,184,.9)}
-    .light input,.light select{background:#f9fafb;border-color:#cbd5f5;color:#020617}
-    .light #timerOverlay{background:rgba(15,23,42,.2)}
-    .light .timer-box{background:linear-gradient(135deg,#f9fafb,#e5e7eb);border-color:#cbd5f5}
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: {900:'#020617',800:'#0f172a',700:'#1e293b',600:'#334155'}
+          }
+        }
+      }
+    }
+  </script>
 </head>
-<body>
-  <div id="app"></div>
-  <div id="timerOverlay">
-    <div class="timer-box">
-      <div class="timer-label">Focus Session</div>
-      <div class="timer-time" id="timerTime"></div>
-      <div class="timer-name" id="timerLabel"></div>
-      <div class="timer-actions">
-        <button id="timerCancel" class="ghost">Cancel</button>
+<body class="bg-dark-900 text-slate-100 min-h-screen flex items-stretch justify-center">
+<div id="app" class="w-full max-w-6xl m-3 md:m-6"></div>
+
+<script>
+const LS_KEY="habit_os_v1";
+const todayStr=()=>new Date().toISOString().slice(0,10);
+const clone=o=>JSON.parse(JSON.stringify(o));
+const load=()=>{try{return JSON.parse(localStorage.getItem(LS_KEY))||null}catch{return null}};
+const emptyStore=()=>({
+  habits:[],
+  completions:{},
+  settings:{theme:"dark",vacationMode:false},
+  view:{selectedDate:todayStr(),monthOffset:0,manualSort:false}
+});
+let store=load()||emptyStore();
+const save=()=>localStorage.setItem(LS_KEY,JSON.stringify(store));
+const setTheme=()=>{document.documentElement.classList.toggle("dark",store.settings.theme==="dark")};
+setTheme();
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const dateObj=s=>new Date(s+"T00:00:00");
+const ymd=d=>d.toISOString().slice(0,10);
+const fmtMonthYear=d=>d.toLocaleDateString(undefined,{month:"long",year:"numeric"});
+
+const addCompletion=(date,id)=>{const c=store.completions[date]||[];if(!c.includes(id))c.push(id);store.completions[date]=c};
+const removeCompletion=(date,id)=>{const c=store.completions[date]||[];store.completions[date]=c.filter(x=>x!==id);if(!store.completions[date].length)delete store.completions[date]};
+
+const isDue=(h,date)=>{
+  const d=dateObj(date),dow=d.getDay();
+  if(h.type==="habit"){
+    const freq=h.frequency&&h.frequency.length?h.frequency:[0,1,2,3,4,5,6];
+    return !h.archived&&freq.includes(dow);
+  }
+  if(h.type==="task")return!h.archived&&h.targetDate===date;
+  if(h.type==="event")return!h.archived&&h.targetDate===date;
+  if(h.type==="birthday"){
+    if(!h.targetDate)return false;
+    const td=dateObj(h.targetDate);
+    return!h.archived&&td.getDate()===d.getDate()&&td.getMonth()===d.getMonth();
+  }
+  return false;
+};
+
+const dueHabitsTasks=date=>store.habits.filter(h=>["habit","task"].includes(h.type)&&isDue(h,date));
+const dayCompletionStats=date=>{
+  const due=dueHabitsTasks(date);
+  const doneIds=new Set(store.completions[date]||[]);
+  let total=due.length,done=0;
+  due.forEach(h=>{if(doneIds.has(h.id))done++});
+  return{total,done,ratio:total?done/total:0};
+};
+const last30Stats=()=>{
+  const arr=[],base=dateObj(todayStr());
+  for(let i=29;i>=0;i--){
+    const d=new Date(base);d.setDate(d.getDate()-i);
+    const ds=ymd(d);
+    arr.push({date:ds,...dayCompletionStats(ds)});
+  }
+  return arr;
+};
+const monthDays=offset=>{
+  const base=new Date();base.setDate(1);base.setMonth(base.getMonth()+offset);
+  const year=base.getFullYear(),month=base.getMonth();
+  const first=new Date(year,month,1),startDow=first.getDay();
+  const daysIn=new Date(year,month+1,0).getDate(),cells=[];
+  for(let i=0;i<startDow;i++)cells.push(null);
+  for(let d=1;d<=daysIn;d++)cells.push(new Date(year,month,d));
+  return{cells,monthDate:first};
+};
+const streakForHabit=h=>{
+  let streak=0,d=dateObj(todayStr());
+  for(let i=0;i<365;i++){
+    const ds=ymd(d);
+    if(isDue(h,ds)){
+      const done=(store.completions[ds]||[]).includes(h.id);
+      if(done)streak++;
+      else if(!store.settings.vacationMode)break;
+    }else if(!store.settings.vacationMode)break;
+    d.setDate(d.getDate()-1);
+  }
+  return streak;
+};
+const monthlyCount=h=>{
+  if(!h.monthlyGoal)return 0;
+  const now=dateObj(todayStr()),y=now.getFullYear(),m=now.getMonth();
+  let count=0;
+  Object.entries(store.completions).forEach(([date,ids])=>{
+    const d=dateObj(date);
+    if(d.getFullYear()===y&&d.getMonth()===m&&ids.includes(h.id))count++;
+  });
+  return count;
+};
+
+const openHabitEditor=h=>{
+  const base=h?clone(h):{
+    id:uid(),name:"",type:"habit",icon:"✅",
+    targetDate:todayStr(),frequency:[1,2,3,4,5],
+    monthlyGoal:null,useTimer:false,archived:false,
+    order:store.habits.length
+  };
+  const name=prompt("Name",base.name);
+  if(name===null)return;
+  base.name=name.trim()||"Untitled";
+  const type=prompt("Type: habit/task/event/birthday",base.type)||base.type;
+  base.type=["habit","task","event","birthday"].includes(type)?type:"habit";
+  const icon=prompt("Emoji icon",base.icon)||base.icon;
+  base.icon=icon;
+  if(["task","event","birthday"].includes(base.type)){
+    const td=prompt("Date (YYYY-MM-DD)",base.targetDate)||base.targetDate;
+    base.targetDate=td;
+  }else{
+    const freqStr=prompt("Frequency days (0-6 comma, blank=daily)",base.frequency?base.frequency.join(","):"");
+    base.frequency=freqStr?freqStr.split(",").map(x=>parseInt(x.trim())).filter(x=>x>=0&&x<=6):[0,1,2,3,4,5,6];
+  }
+  const goalStr=prompt("Monthly goal (blank=none)",base.monthlyGoal??"");
+  base.monthlyGoal=goalStr?(parseInt(goalStr)||null):null;
+  const timer=confirm("Use focus timer? OK=yes, Cancel=no");
+  base.useTimer=timer;
+  if(h){
+    const idx=store.habits.findIndex(x=>x.id===h.id);
+    store.habits[idx]=base;
+  }else store.habits.push(base);
+  store.habits.forEach((hh,i)=>hh.order=i);
+  save();render();
+};
+const archiveHabit=h=>{
+  if(confirm("Archive this item?")){
+    h.archived=true;save();render();
+  }
+};
+
+let timerId=null,timerRemaining=0,timerHabitId=null,timerDate=null;
+const startTimer=(habitId,date)=>{
+  const h=store.habits.find(x=>x.id===habitId);
+  timerHabitId=habitId;timerDate=date;timerRemaining=25*60;
+  document.getElementById("timerOverlay").classList.remove("hidden");
+  document.getElementById("timerLabel").innerHTML=`<span class="text-xl mr-1">${h?.icon||"⏱"}</span>${h?.name||"Focus"}`;
+  updateTimerDisplay();
+  if(timerId)clearInterval(timerId);
+  timerId=setInterval(()=>{
+    timerRemaining--;
+    if(timerRemaining<=0){
+      clearInterval(timerId);timerId=null;
+      addCompletion(timerDate,timerHabitId);save();render();beep();closeTimer();
+    }else updateTimerDisplay();
+  },1000);
+};
+const updateTimerDisplay=()=>{
+  const m=Math.floor(timerRemaining/60).toString().padStart(2,"0");
+  const s=(timerRemaining%60).toString().padStart(2,"0");
+  document.getElementById("timerTime").textContent=`${m}:${s}`;
+};
+const closeTimer=()=>{
+  document.getElementById("timerOverlay").classList.add("hidden");
+  if(timerId){clearInterval(timerId);timerId=null;}
+};
+const beep=()=>{
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type="sine";o.frequency.value=880;o.connect(g);g.connect(ctx.destination);
+    o.start();g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.4);
+    setTimeout(()=>ctx.close(),500);
+  }catch(e){alert("Done!");}
+};
+const exportJson=()=>{
+  const blob=new Blob([JSON.stringify(store)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="habit_os_backup.json";a.click();
+  URL.revokeObjectURL(a.href);
+};
+const importJson=()=>{
+  const inp=document.createElement("input");
+  inp.type="file";inp.accept=".json";
+  inp.onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      try{
+        const data=JSON.parse(ev.target.result);
+        store=data;save();setTheme();render();
+      }catch{alert("Invalid file");}
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+};
+const toggleTheme=()=>{store.settings.theme=store.settings.theme==="dark"?"light":"dark";save();setTheme();render();};
+const toggleVacation=()=>{store.settings.vacationMode=!store.settings.vacationMode;save();render();};
+const toggleManualSort=()=>{store.view.manualSort=!store.view.manualSort;save();render();};
+const moveHabit=(id,dir)=>{
+  const idx=store.habits.findIndex(h=>h.id===id);if(idx<0)return;
+  const j=idx+dir;if(j<0||j>=store.habits.length)return;
+  const tmp=store.habits[idx];store.habits[idx]=store.habits[j];store.habits[j]=tmp;
+  store.habits.forEach((h,i)=>h.order=i);save();render();
+};
+
+const render=()=>{
+  const app=document.getElementById("app");
+  const selDate=store.view.selectedDate;
+  const stats=dayCompletionStats(selDate);
+  const ratio=Math.round(stats.ratio*100);
+  const last30=last30Stats();
+  const month=monthDays(store.view.monthOffset);
+  const days=month.cells;
+  const monthLabel=fmtMonthYear(month.monthDate);
+  const week=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  const sidebarHabits=store.habits.filter(h=>!h.archived).slice().sort((a,b)=>store.view.manualSort?(a.order||0)-(b.order||0):a.name.localeCompare(b.name));
+  const agendaItems=store.habits.filter(h=>isDue(h,selDate)&&!h.archived).slice().sort((a,b)=>store.view.manualSort?(a.order||0)-(b.order||0):a.name.localeCompare(b.name));
+
+  const barHtml=last30.map(d=>{
+    const pct=d.ratio*100;let cls="bg-slate-500";
+    if(pct===100)cls="bg-emerald-500";
+    else if(pct>50)cls="bg-amber-400";
+    const h=6+10*(pct/100);
+    return `<div class="flex-1 flex items-end justify-center"><div title="${d.date} ${Math.round(pct)}%" class="w-2 rounded-full ${cls}" style="height:${h}px"></div></div>`;
+  }).join("");
+
+  const calHead=week.map(w=>`<div class="text-[10px] text-slate-400 uppercase tracking-[0.18em] text-center">${w}</div>`).join("");
+
+  const calCells=days.map(d=>{
+    if(!d)return`<div></div>`;
+    const ds=ymd(d),isToday=ds===todayStr();
+    const dots=[];
+    store.habits.forEach(h=>{
+      if(h.type==="event"&&isDue(h,ds))dots.push(`<span class="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-sm"></span>`);
+      if(h.type==="birthday"&&isDue(h,ds))dots.push(`<span class="w-1.5 h-1.5 rounded-full bg-pink-400 shadow-sm"></span>`);
+    });
+    const st=dayCompletionStats(ds),pct=Math.round(st.ratio*100);
+    let barCls="bg-slate-500";
+    if(pct===100)barCls="bg-emerald-500";
+    else if(pct>50)barCls="bg-amber-400";
+    const bar=st.total?`<div class="mt-1 h-1.5 w-full rounded-full bg-slate-800 overflow-hidden"><div class="h-full ${barCls}" style="width:${pct}%"></div></div>`:"";
+    return `<button class="text-left rounded-xl border ${isToday?"border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.8)]":"border-slate-700"} bg-slate-900/70 hover:border-indigo-400 hover:bg-slate-900 transition p-1.5 flex flex-col gap-1" data-date="${ds}">
+      <div class="flex items-center justify-between text-[11px]">
+        <span class="font-semibold">${d.getDate()}</span>
+      </div>
+      <div class="flex gap-1">${dots.join("")}</div>
+      ${bar}
+    </button>`;
+  }).join("");
+
+  const sidebarHtml=sidebarHabits.map(h=>{
+    const doneCount=monthlyCount(h),streak=streakForHabit(h);
+    const pct=h.monthlyGoal?Math.min(100,Math.round((doneCount/(h.monthlyGoal||1))*100)):0;
+    let bar="",meta="";
+    if(h.monthlyGoal){
+      let cls="bg-slate-500";
+      if(pct===100)cls="bg-emerald-500";
+      else if(pct>50)cls="bg-amber-400";
+      bar=`<div class="mt-1 h-1.5 w-full rounded-full bg-slate-800 overflow-hidden"><div class="h-full ${cls}" style="width:${pct}%"></div></div>`;
+      meta=`${doneCount}/${h.monthlyGoal} this month`;
+    }else meta=`Streak: ${streak} days`;
+    const typeBadge=h.type==="habit"?"bg-indigo-500/10 text-indigo-300 border-indigo-400/60":
+                     h.type==="task"?"bg-emerald-500/10 text-emerald-300 border-emerald-400/60":
+                     h.type==="event"?"bg-sky-500/10 text-sky-300 border-sky-400/60":
+                     "bg-pink-500/10 text-pink-300 border-pink-400/60";
+    return `<div class="rounded-2xl border border-slate-700 bg-slate-900/80 shadow-lg px-3 py-2.5 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 flex-1">
+        <div class="w-8 h-8 rounded-2xl bg-slate-800 flex items-center justify-center text-lg shadow-inner">${h.icon||"•"}</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-2 text-[13px]">
+            <span class="font-semibold">${h.name}</span>
+            <span class="px-2 py-0.5 rounded-full border text-[10px] ${typeBadge}">${h.type}</span>
+          </div>
+          <div class="text-[11px] text-slate-400 mt-0.5">${meta}</div>
+          ${bar}
+        </div>
+      </div>
+      <div class="flex flex-col gap-1 items-end">
+        <button class="text-[11px] px-2 py-1 rounded-full border border-slate-600 hover:border-indigo-400 hover:bg-slate-800" data-edit="${h.id}">Edit</button>
+        ${store.view.manualSort?`<div class="flex flex-col gap-1">
+          <button class="text-[11px] px-2 py-0.5 rounded-full border border-slate-700 hover:border-slate-400" data-up="${h.id}">↑</button>
+          <button class="text-[11px] px-2 py-0.5 rounded-full border border-slate-700 hover:border-slate-400" data-down="${h.id}">↓</button>
+        </div>`:""}
+      </div>
+    </div>`;
+  }).join("")||`<div class="text-xs text-slate-400 px-1 py-2">No items yet. Add one to begin.</div>`;
+
+  const agendaHtml=agendaItems.map(h=>{
+    const done=(store.completions[selDate]||[]).includes(h.id);
+    const typeLabel=h.type==="task"?"Task":h.type==="habit"?"Routine":h.type==="event"?"Event":"Birthday";
+    const chipCls=h.type==="habit"?"border-indigo-400/60 text-indigo-200":
+                  h.type==="task"?"border-emerald-400/60 text-emerald-200":
+                  h.type==="event"?"border-sky-400/60 text-sky-200":
+                  "border-pink-400/60 text-pink-200";
+    return `<div class="rounded-2xl border border-slate-700 bg-slate-900/80 shadow-lg px-3 py-2.5 flex items-center justify-between gap-3">
+      <button class="flex items-center gap-3 flex-1 text-left" data-toggle="${h.id}">
+        <div class="w-5 h-5 rounded-xl border ${done?"border-emerald-400 bg-emerald-500/20 shadow":"border-slate-600 bg-slate-900"} flex items-center justify-center text-[11px]">
+          ${done?"✓":""}
+        </div>
+        <div>
+          <div class="text-[13px] font-semibold">${h.name}</div>
+          <div class="text-[11px] text-slate-400">${typeLabel}</div>
+        </div>
+      </button>
+      <div class="flex flex-col gap-1 items-end">
+        ${h.useTimer&&["habit","task"].includes(h.type)?`<button class="text-[11px] px-2 py-1 rounded-full border border-slate-600 hover:border-emerald-400 hover:bg-slate-800" data-timer="${h.id}">▶ Focus</button>`:""}
+        <span class="px-2 py-0.5 rounded-full border text-[10px] ${chipCls}">${h.type}</span>
+      </div>
+    </div>`;
+  }).join("")||`<div class="text-xs text-slate-400 px-1 py-2">Nothing due on this day.</div>`;
+
+  app.innerHTML=`
+  <div class="rounded-3xl border border-slate-700 bg-slate-900/80 shadow-2xl backdrop-blur-xl p-4 md:p-5 flex flex-col gap-4">
+    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2">
+          <div class="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-400 to-rose-400 shadow-lg"></div>
+          <h1 class="text-sm md:text-base font-semibold tracking-[0.18em] uppercase text-slate-200">Habit OS Stable Pro</h1>
+        </div>
+        <div class="text-[11px] text-slate-400 mt-1">Focused day: <span class="text-slate-100">${selDate}</span></div>
+      </div>
+      <div class="flex flex-wrap gap-2 items-center justify-end text-[11px]">
+        <span class="px-3 py-1 rounded-full border border-slate-700 bg-slate-900/80 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 shadow"></span>
+          Today ${ratio}% · ${stats.done}/${stats.total}
+        </span>
+        <span class="px-3 py-1 rounded-full border border-slate-700 bg-slate-900/80">Vacation: ${store.settings.vacationMode?"On":"Off"}</span>
+        <span class="px-3 py-1 rounded-full border border-slate-700 bg-slate-900/80">Theme: ${store.settings.theme==="dark"?"Dark":"Light"}</span>
+        <button id="addHabit" class="px-3 py-1 rounded-full bg-indigo-500 hover:bg-indigo-400 text-xs font-medium shadow">+ New Item</button>
+        <button id="toggleSort" class="px-3 py-1 rounded-full border border-slate-700 hover:border-indigo-400 text-xs">${store.view.manualSort?"Manual sort":"Auto sort"}</button>
+        <button id="themeBtn" class="px-3 py-1 rounded-full border border-slate-700 hover:border-indigo-400 text-xs">Theme</button>
+        <button id="vacBtn" class="px-3 py-1 rounded-full border border-slate-700 hover:border-indigo-400 text-xs">Vacation</button>
+        <button id="exportBtn" class="px-3 py-1 rounded-full border border-slate-700 hover:border-indigo-400 text-xs">Export</button>
+        <button id="importBtn" class="px-3 py-1 rounded-full border border-slate-700 hover:border-indigo-400 text-xs">Import</button>
+      </div>
+    </header>
+    <div class="grid grid-cols-1 md:grid-cols-[1.1fr,1.2fr,1.1fr] gap-3 md:gap-4">
+      <section class="rounded-2xl border border-slate-700 bg-slate-900/80 shadow-xl p-3 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-300">Registry</h2>
+            <p class="text-[10px] text-slate-500 mt-0.5">Habits · Tasks · Events · Birthdays</p>
+          </div>
+        </div>
+        <div class="mt-2 space-y-2 overflow-y-auto max-h-[420px] pr-1">${sidebarHtml}</div>
+      </section>
+      <section class="rounded-2xl border border-slate-700 bg-slate-900/80 shadow-xl p-3 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-300">Calendar</h2>
+            <p class="text-[10px] text-slate-500 mt-0.5">${monthLabel}</p>
+          </div>
+          <div class="flex items-center gap-1 text-[11px]">
+            <button id="prevMonth" class="px-2 py-1 rounded-full border border-slate-700 hover:border-indigo-400">◀</button>
+            <button id="todayBtn" class="px-2 py-1 rounded-full border border-slate-700 hover:border-indigo-400">Today</button>
+            <button id="nextMonth" class="px-2 py-1 rounded-full border border-slate-700 hover:border-indigo-400">▶</button>
+          </div>
+        </div>
+        <div class="mt-2 grid grid-cols-7 gap-1.5">
+          ${calHead}
+          ${calCells}
+        </div>
+        <div class="mt-3">
+          <div class="flex items-center justify-between text-[10px] text-slate-500 mb-1">
+            <span>Smart Metrics</span><span>Last 30 days</span>
+          </div>
+          <div class="flex gap-1 h-16">${barHtml}</div>
+        </div>
+      </section>
+      <section class="rounded-2xl border border-slate-700 bg-slate-900/80 shadow-xl p-3 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-[11px] font-semibold tracking-[0.18em] uppercase text-slate-300">Agenda</h2>
+            <p class="text-[10px] text-slate-500 mt-0.5">Due on ${selDate}</p>
+          </div>
+        </div>
+        <div class="mt-2 space-y-2 overflow-y-auto max-h-[420px] pr-1">${agendaHtml}</div>
+      </section>
+    </div>
+  </div>
+  <div id="timerOverlay" class="fixed inset-0 hidden items-center justify-center bg-black/70 backdrop-blur-sm z-50">
+    <div class="bg-slate-900/95 border border-slate-700 rounded-3xl shadow-2xl px-6 py-5 flex flex-col items-center gap-3 max-w-xs w-full mx-4">
+      <div class="text-[11px] tracking-[0.18em] uppercase text-slate-400">Focus Session</div>
+      <div id="timerTime" class="text-4xl font-semibold tracking-[0.18em] tabular-nums">25:00</div>
+      <div id="timerLabel" class="text-sm text-slate-200 flex items-center gap-2"></div>
+      <div class="flex gap-2 mt-2">
+        <button id="timerCancel" class="px-4 py-1.5 rounded-full border border-slate-600 hover:border-rose-400 text-xs">Cancel</button>
       </div>
     </div>
   </div>
-  <script>
-    const LS_KEY = "habit_os_v1";
-    const todayStr = () => new Date().toISOString().slice(0,10);
-    const clone = o => JSON.parse(JSON.stringify(o));
-    const load = () => { try { return JSON.parse(localStorage.getItem(LS_KEY)) || null; } catch { return null; } };
-    const emptyStore = () => ({
-      habits: [],
-      completions: {},
-      settings: { theme: "dark", vacationMode: false },
-      view: { selectedDate: todayStr(), monthOffset: 0, manualSort: false }
-    });
-    let store = load() || emptyStore();
-    const save = () => localStorage.setItem(LS_KEY, JSON.stringify(store));
-    const setTheme = () => {
-      if (store.settings.theme === "light") document.documentElement.classList.add("light");
-      else document.documentElement.classList.remove("light");
+  `;
+
+  document.getElementById("addHabit").onclick=()=>openHabitEditor();
+  document.getElementById("themeBtn").onclick=toggleTheme;
+  document.getElementById("vacBtn").onclick=toggleVacation;
+  document.getElementById("exportBtn").onclick=exportJson;
+  document.getElementById("importBtn").onclick=importJson;
+  document.getElementById("toggleSort").onclick=toggleManualSort;
+  document.getElementById("prevMonth").onclick=()=>{store.view.monthOffset--;save();render();};
+  document.getElementById("nextMonth").onclick=()=>{store.view.monthOffset++;save();render();};
+  document.getElementById("todayBtn").onclick=()=>{store.view.selectedDate=todayStr();store.view.monthOffset=0;save();render();};
+  document.getElementById("timerCancel").onclick=closeTimer;
+
+  document.querySelectorAll("[data-date]").forEach(el=>{
+    el.onclick=()=>{
+      const d=el.getAttribute("data-date");if(!d)return;
+      store.view.selectedDate=d;save();render();
     };
-    setTheme();
-    const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
-    const dateObj = s => new Date(s + "T00:00:00");
-    const fmtMonthYear = d => d.toLocaleDateString(undefined,{month:"long",year:"numeric"});
-    const ymd = d => d.toISOString().slice(0,10);
-
-    const addCompletion = (date,id) => {
-      const c = store.completions[date] || [];
-      if (!c.includes(id)) c.push(id);
-      store.completions[date] = c;
+  });
+  document.querySelectorAll("[data-edit]").forEach(el=>{
+    el.onclick=e=>{
+      e.stopPropagation();
+      const id=el.getAttribute("data-edit");
+      const h=store.habits.find(x=>x.id===id);if(!h)return;
+      const action=prompt("Edit or archive? (e/a)","e");
+      if(action==="a")archiveHabit(h);else openHabitEditor(h);
     };
-    const removeCompletion = (date,id) => {
-      const c = store.completions[date] || [];
-      store.completions[date] = c.filter(x => x !== id);
-      if (!store.completions[date].length) delete store.completions[date];
+  });
+  document.querySelectorAll("[data-up]").forEach(el=>{
+    el.onclick=e=>{e.stopPropagation();moveHabit(el.getAttribute("data-up"),-1);};
+  });
+  document.querySelectorAll("[data-down]").forEach(el=>{
+    el.onclick=e=>{e.stopPropagation();moveHabit(el.getAttribute("data-down"),1);};
+  });
+  document.querySelectorAll("[data-toggle]").forEach(el=>{
+    el.onclick=()=>{
+      const id=el.getAttribute("data-toggle"),date=selDate;
+      const done=(store.completions[date]||[]).includes(id);
+      if(done)removeCompletion(date,id);else addCompletion(date,id);
+      save();render();
     };
+  });
+  document.querySelectorAll("[data-timer]").forEach(el=>{
+    el.onclick=e=>{e.stopPropagation();startTimer(el.getAttribute("data-timer"),selDate);};
+  });
+};
 
-    const isDue = (h,date) => {
-      const d = dateObj(date);
-      const dow = d.getDay();
-      if (h.type === "habit") {
-        const freq = h.frequency && h.frequency.length ? h.frequency : [0,1,2,3,4,5,6];
-        return !h.archived && freq.includes(dow);
-      }
-      if (h.type === "task") return !h.archived && h.targetDate === date;
-      if (h.type === "event") return !h.archived && h.targetDate === date;
-      if (h.type === "birthday") {
-        if (!h.targetDate) return false;
-        const td = dateObj(h.targetDate);
-        return !h.archived && td.getDate() === d.getDate() && td.getMonth() === d.getMonth();
-      }
-      return false;
-    };
-
-    const dueHabitsTasks = date =>
-      store.habits.filter(h => ["habit","task"].includes(h.type) && isDue(h,date));
-
-    const dayCompletionStats = date => {
-      const due = dueHabitsTasks(date);
-      const doneIds = new Set(store.completions[date] || []);
-      let total = due.length, done = 0;
-      due.forEach(h => { if (doneIds.has(h.id)) done++; });
-      return { total, done, ratio: total ? done/total : 0 };
-    };
-
-    const last30Stats = () => {
-      const arr = [];
-      const base = dateObj(todayStr());
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date(base);
-        d.setDate(d.getDate() - i);
-        const ds = ymd(d);
-        arr.push({ date: ds, ...dayCompletionStats(ds) });
-      }
-      return arr;
-    };
-
-    const monthDays = offset => {
-      const base = new Date();
-      base.setDate(1);
-      base.setMonth(base.getMonth() + offset);
-      const year = base.getFullYear();
-      const month = base.getMonth();
-      const first = new Date(year, month, 1);
-      const startDow = first.getDay();
-      const daysIn = new Date(year, month + 1, 0).getDate();
-      const cells = [];
-      for (let i = 0; i < startDow; i++) cells.push(null);
-      for (let d = 1; d <= daysIn; d++) cells.push(new Date(year, month, d));
-      return { cells, monthDate: first };
-    };
-
-    const streakForHabit = h => {
-      let streak = 0;
-      let d = dateObj(todayStr());
-      for (let i = 0; i < 365; i++) {
-        const ds = ymd(d);
-        if (isDue(h, ds)) {
-          const done = (store.completions[ds] || []).includes(h.id);
-          if (done) streak++;
-          else if (!store.settings.vacationMode) break;
-        } else if (!store.settings.vacationMode) break;
-        d.setDate(d.getDate() - 1);
-      }
-      return streak;
-    };
-
-    const monthlyCount = h => {
-      if (!h.monthlyGoal) return 0;
-      const now = dateObj(todayStr());
-      const y = now.getFullYear(), m = now.getMonth();
-      let count = 0;
-      Object.entries(store.completions).forEach(([date, ids]) => {
-        const d = dateObj(date);
-        if (d.getFullYear() === y && d.getMonth() === m && ids.includes(h.id)) count++;
-      });
-      return count;
-    };
-
-    const openHabitEditor = h => {
-      const base = h ? clone(h) : {
-        id: uid(),
-        name: "",
-        type: "habit",
-        icon: "✅",
-        targetDate: todayStr(),
-        frequency: [1,2,3,4,5],
-        monthlyGoal: null,
-        useTimer: false,
-        archived: false,
-        order: store.habits.length
-      };
-      const name = prompt("Name", base.name);
-      if (name === null) return;
-      base.name = name.trim() || "Untitled";
-      const type = prompt("Type: habit/task/event/birthday", base.type) || base.type;
-      base.type = ["habit","task","event","birthday"].includes(type) ? type : "habit";
-      const icon = prompt("Emoji icon", base.icon) || base.icon;
-      base.icon = icon;
-      if (["task","event","birthday"].includes(base.type)) {
-        const td = prompt("Date (YYYY-MM-DD)", base.targetDate) || base.targetDate;
-        base.targetDate = td;
-      } else {
-        const freqStr = prompt("Frequency days (0-6 comma, blank=daily)", base.frequency ? base.frequency.join(",") : "");
-        base.frequency = freqStr
-          ? freqStr.split(",").map(x => parseInt(x.trim())).filter(x => x>=0 && x<=6)
-          : [0,1,2,3,4,5,6];
-      }
-      const goalStr = prompt("Monthly goal (blank=none)", base.monthlyGoal ?? "");
-      base.monthlyGoal = goalStr ? (parseInt(goalStr) || null) : null;
-      const timer = confirm("Use focus timer? OK=yes, Cancel=no");
-      base.useTimer = timer;
-      if (h) {
-        const idx = store.habits.findIndex(x => x.id === h.id);
-        store.habits[idx] = base;
-      } else {
-        store.habits.push(base);
-      }
-      store.habits.forEach((hh,i) => hh.order = i);
-      save();
-      render();
-    };
-
-    const archiveHabit = h => {
-      if (confirm("Archive this item?")) {
-        h.archived = true;
-        save();
-        render();
-      }
-    };
-
-    let timerId = null, timerRemaining = 0, timerHabitId = null, timerDate = null;
-
-    const startTimer = (habitId,date) => {
-      const h = store.habits.find(x => x.id === habitId);
-      timerHabitId = habitId;
-      timerDate = date;
-      timerRemaining = 25 * 60;
-      document.getElementById("timerOverlay").style.display = "flex";
-      document.getElementById("timerLabel").innerHTML = `<span>${h?.icon || "⏱"}</span>${h?.name || "Focus"}`;
-      updateTimerDisplay();
-      if (timerId) clearInterval(timerId);
-      timerId = setInterval(() => {
-        timerRemaining--;
-        if (timerRemaining <= 0) {
-          clearInterval(timerId);
-          timerId = null;
-          addCompletion(timerDate, timerHabitId);
-          save();
-          render();
-          beep();
-          closeTimer();
-        } else {
-          updateTimerDisplay();
-        }
-      }, 1000);
-    };
-
-    const updateTimerDisplay = () => {
-      const m = Math.floor(timerRemaining/60).toString().padStart(2,"0");
-      const s = (timerRemaining%60).toString().padStart(2,"0");
-      document.getElementById("timerTime").textContent = `${m}:${s}`;
-    };
-
-    const closeTimer = () => {
-      document.getElementById("timerOverlay").style.display = "none";
-      if (timerId) {
-        clearInterval(timerId);
-        timerId = null;
-      }
-    };
-
-    document.getElementById("timerCancel").onclick = closeTimer;
-
-    const beep = () => {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.type = "sine";
-        o.frequency.value = 880;
-        o.connect(g);
-        g.connect(ctx.destination);
-        o.start();
-        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
-        setTimeout(() => ctx.close(), 500);
-      } catch (e) {
-        alert("Done!");
-      }
-    };
-
-    const exportJson = () => {
-      const blob = new Blob([JSON.stringify(store)], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "habit_os_backup.json";
-      a.click();
-      URL.revokeObjectURL(a.href);
-    };
-
-    const importJson = () => {
-      const inp = document.createElement("input");
-      inp.type = "file";
-      inp.accept = ".json";
-      inp.onchange = e => {
-        const f = e.target.files[0];
-        if (!f) return;
-        const r = new FileReader();
-        r.onload = ev => {
-          try {
-            const data = JSON.parse(ev.target.result);
-            store = data;
-            save();
-            setTheme();
-            render();
-          } catch {
-            alert("Invalid file");
-          }
-        };
-        r.readAsText(f);
-      };
-      inp.click();
-    };
-
-    const toggleTheme = () => {
-      store.settings.theme = store.settings.theme === "dark" ? "light" : "dark";
-      save();
-      setTheme();
-      render();
-    };
-
-    const toggleVacation = () => {
-      store.settings.vacationMode = !store.settings.vacationMode;
-      save();
-      render();
-    };
-
-    const toggleManualSort = () => {
-      store.view.manualSort = !store.view.manualSort;
-      save();
-      render();
-    };
-
-    const moveHabit = (id,dir) => {
-      const idx = store.habits.findIndex(h => h.id === id);
-      if (idx < 0) return;
-      const j = idx + dir;
-      if (j < 0 || j >= store.habits.length) return;
-      const tmp = store.habits[idx];
-      store.habits[idx] = store.habits[j];
-      store.habits[j] = tmp;
-      store.habits.forEach((h,i) => h.order = i);
-      save();
-      render();
-    };
-
-    const render = () => {
-      const app = document.getElementById("app");
-      const selDate = store.view.selectedDate;
-      const stats = dayCompletionStats(selDate);
-      const ratio = Math.round(stats.ratio * 100);
-      const last30 = last30Stats();
-      const month = monthDays(store.view.monthOffset);
-      const days = month.cells;
-      const monthLabel = fmtMonthYear(month.monthDate);
-      const week = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-
-      const sidebarHabits = store.habits
-        .filter(h => !h.archived)
-        .slice()
-        .sort((a,b) => store.view.manualSort ? (a.order||0)-(b.order||0) : a.name.localeCompare(b.name));
-
-      const agendaItems = store.habits
-        .filter(h => isDue(h, selDate) && !h.archived)
-        .slice()
-        .sort((a,b) => store.view.manualSort ? (a.order||0)-(b.order||0) : a.name.localeCompare(b.name));
-
-      const barHtml = last30.map(d => {
-        const pct = d.ratio * 100;
-        let cls = "gray";
-        if (pct === 100) cls = "green";
-        else if (pct > 50) cls = "orange";
-        const h = 6 + 10 * (pct/100);
-        return `<div class="bar-cell"><div title="${d.date} ${Math.round(pct)}%" class="bar ${cls}" style="height:${h}px"></div></div>`;
-      }).join("");
-
-      const calHead = week.map(w => `<div class="day-head">${w}</div>`).join("");
-
-      const calCells = days.map(d => {
-        if (!d) return `<div></div>`;
-        const ds = ymd(d);
-        const isToday = ds === todayStr();
-        const dots = [];
-        store.habits.forEach(h => {
-          if (h.type === "event" && isDue(h, ds)) dots.push(`<div class="dot blue"></div>`);
-          if (h.type === "birthday" && isDue(h, ds)) dots.push(`<div class="dot pink"></div>`);
-        });
-        const st = dayCompletionStats(ds);
-        const pct = Math.round(st.ratio * 100);
-        let cls = "gray";
-        if (pct === 100) cls = "";
-        else if (pct > 50) cls = "orange";
-        const bar = st.total
-          ? `<div class="progress-shell day-progress"><div class="progress-bar ${cls}" style="width:${pct}%"></div></div>`
-          : "";
-        return `<div class="day ${isToday ? "today" : ""}" data-date="${ds}">
-                  <div class="day-num">${d.getDate()}</div>
-                  <div class="dots">${dots.join("")}</div>
-                  ${bar}
-                </div>`;
-      }).join("");
-
-      const sidebarHtml = sidebarHabits.map(h => {
-        const doneCount = monthlyCount(h);
-        const streak = streakForHabit(h);
-        const pct = h.monthlyGoal ? Math.min(100, Math.round((doneCount/(h.monthlyGoal||1))*100)) : 0;
-        let bar = "", meta = "";
-        if (h.monthlyGoal) {
-          let cls = "gray";
-          if (pct === 100) cls = "";
-          else if (pct > 50) cls = "orange";
-          bar = `<div class="progress-shell"><div class="progress-bar ${cls}" style="width:${pct}%"></div></div>`;
-          meta = `${doneCount}/${h.monthlyGoal} this month`;
-        } else {
-          meta = `Streak: ${streak} days`;
-        }
-        return `<div class="card">
-                  <div class="card-main">
-                    <div class="icon">${h.icon || "•"}</div>
-                    <div>
-                      <div>${h.name} <span class="badge ${h.type}">${h.type}</span></div>
-                      <div class="meta">${meta}</div>
-                      ${bar}
-                    </div>
-                  </div>
-                  <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
-                    <button class="ghost" data-edit="${h.id}">Edit</button>
-                    ${store.view.manualSort ? `
-                      <div style="display:flex;flex-direction:column;gap:2px">
-                        <button class="ghost" data-up="${h.id}">↑</button>
-                        <button class="ghost" data-down="${h.id}">↓</button>
-                      </div>` : ""}
-                  </div>
-                </div>`;
-      }).join("") || `<div class="agenda-empty">No items yet. Add one to begin.</div>`;
-
-      const agendaHtml = agendaItems.map(h => {
-        const done = (store.completions[selDate] || []).includes(h.id);
-        return `<div class="card">
-                  <div class="card-main" data-toggle="${h.id}">
-                    <div class="checkbox ${done ? "done" : ""}">${done ? "<span>✓</span>" : ""}</div>
-                    <div>
-                      <div>${h.name}</div>
-                      <div class="meta">
-                        ${h.type === "task" ? "Task" : h.type === "habit" ? "Routine" : h.type === "event" ? "Event" : "Birthday"}
-                      </div>
-                    </div>
-                  </div>
-                  <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
-                    ${h.useTimer && ["habit","task"].includes(h.type) ? `<button class="ghost" data-timer="${h.id}">▶ Focus</button>` : ""}
-                    <span class="chip ${h.type}">${h.type}</span>
-                  </div>
-                </div>`;
-      }).join("") || `<div class="agenda-empty">Nothing due on this day.</div>`;
-
-      app.innerHTML = `
-        <header>
-          <div>
-            <h1><span></span>Habit OS Stable Pro</h1>
-            <small>${selDate}</small>
-          </div>
-          <div class="top-metrics">
-            <span><span class="pill-dot"></span>Today ${ratio}% · ${stats.done}/${stats.total}</span>
-            <span>Vacation: ${store.settings.vacationMode ? "On" : "Off"}</span>
-            <span>Theme: ${store.settings.theme === "light" ? "Light" : "Dark"}</span>
-            <button class="primary" id="addHabit">+ New Item</button>
-            <button class="ghost" id="toggleSort">${store.view.manualSort ? "Manual sort" : "Auto sort"}</button>
-            <button class="ghost" id="themeBtn">Theme</button>
-            <button class="ghost" id="vacBtn">Vacation</button>
-            <button class="ghost" id="exportBtn">Export</button>
-            <button class="ghost" id="importBtn">Import</button>
-          </div>
-        </header>
-        <div class="layout">
-          <div class="col">
-            <h2>Registry<span class="sub">Habits · Tasks · Events</span></h2>
-            <div class="list">${sidebarHtml}</div>
-          </div>
-          <div class="col">
-            <h2>Calendar<span class="sub">${monthLabel}</span></h2>
-            <div class="controls">
-              <div class="controls-left">
-                <button class="ghost" id="prevMonth">◀</button>
-                <button class="ghost" id="todayBtn">Today</button>
-                <button class="ghost" id="nextMonth">▶</button>
-              </div>
-              <div class="controls-right">Smart Metrics · Last 30 days</div>
-            </div>
-            <div class="calendar">${calHead}${calCells}</div>
-            <div class="bar-row">${barHtml}</div>
-          </div>
-          <div class="col">
-            <h2>Agenda<span class="sub">Due on ${selDate}</span></h2>
-            <div class="list">${agendaHtml}</div>
-          </div>
-        </div>
-      `;
-
-      document.getElementById("addHabit").onclick = () => openHabitEditor();
-      document.getElementById("themeBtn").onclick = toggleTheme;
-      document.getElementById("vacBtn").onclick = toggleVacation;
-      document.getElementById("exportBtn").onclick = exportJson;
-      document.getElementById("importBtn").onclick = importJson;
-      document.getElementById("toggleSort").onclick = toggleManualSort;
-      document.getElementById("prevMonth").onclick = () => { store.view.monthOffset--; save(); render(); };
-      document.getElementById("nextMonth").onclick = () => { store.view.monthOffset++; save(); render(); };
-      document.getElementById("todayBtn").onclick = () => {
-        store.view.selectedDate = todayStr();
-        store.view.monthOffset = 0;
-        save();
-        render();
-      };
-
-      app.querySelectorAll(".day").forEach(el => {
-        el.onclick = () => {
-          const d = el.getAttribute("data-date");
-          if (!d) return;
-          store.view.selectedDate = d;
-          save();
-          render();
-        };
-      });
-
-      app.querySelectorAll("[data-edit]").forEach(el => {
-        el.onclick = e => {
-          e.stopPropagation();
-          const id = el.getAttribute("data-edit");
-          const h = store.habits.find(x => x.id === id);
-          if (!h) return;
-          const action = prompt("Edit or archive? (e/a)", "e");
-          if (action === "a") archiveHabit(h);
-          else openHabitEditor(h);
-        };
-      });
-
-      app.querySelectorAll("[data-up]").forEach(el => {
-        el.onclick = e => {
-          e.stopPropagation();
-          moveHabit(el.getAttribute("data-up"), -1);
-        };
-      });
-
-      app.querySelectorAll("[data-down]").forEach(el => {
-        el.onclick = e => {
-          e.stopPropagation();
-          moveHabit(el.getAttribute("data-down"), 1);
-        };
-      });
-
-      app.querySelectorAll("[data-toggle]").forEach(el => {
-        el.onclick = () => {
-          const id = el.getAttribute("data-toggle");
-          const date = selDate;
-          const done = (store.completions[date] || []).includes(id);
-          if (done) removeCompletion(date, id);
-          else addCompletion(date, id);
-          save();
-          render();
-        };
-      });
-
-      app.querySelectorAll("[data-timer]").forEach(el => {
-        el.onclick = e => {
-          e.stopPropagation();
-          startTimer(el.getAttribute("data-timer"), selDate);
-        };
-      });
-    };
-
-    if (!store.habits.length) {
-      store.habits.push({
-        id: uid(),
-        name: "Daily Planning",
-        type: "habit",
-        icon: "🧠",
-        targetDate: todayStr(),
-        frequency: [1,2,3,4,5],
-        monthlyGoal: 20,
-        useTimer: true,
-        archived: false,
-        order: 0
-      });
-      save();
-    }
-
-    render();
-  </script>
+if(!store.habits.length){
+  store.habits.push({
+    id:uid(),name:"Daily Planning",type:"habit",icon:"🧠",
+    targetDate:todayStr(),frequency:[1,2,3,4,5],
+    monthlyGoal:20,useTimer:true,archived:false,order:0
+  });
+  save();
+}
+render();
+</script>
 </body>
 </html>
