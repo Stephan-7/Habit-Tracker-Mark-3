@@ -1,655 +1,206 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Habit OS Local</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        dark: { 900: '#0f172a', 800: '#1e293b', 700: '#334155', 600: '#475569', 200: '#e2e8f0' }
-                    },
-                    animation: {
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        .scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
-        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .scrollbar-thin::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
-        .dark .scrollbar-thin::-webkit-scrollbar-thumb { background-color: #475569; }
-        .modal-animate { animation: fadeIn 0.2s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .no-select { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-        .dark .glass { background: rgba(15, 23, 42, 0.85); }
-    </style>
-</head>
-<body class="bg-gray-50 text-gray-900 dark:bg-dark-900 dark:text-dark-200 transition-colors duration-300">
-    <div id="root"></div>
-
-    <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
-
-        // --- ICONS ---
-        const Icon = ({ children, size=20, className="", fill="none" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>;
-        const ChevronLeft = p => <Icon {...p}><path d="m15 18-6-6 6-6"/></Icon>;
-        const ChevronRight = p => <Icon {...p}><path d="m9 18 6-6 6-6"/></Icon>;
-        const Check = p => <Icon {...p}><polyline points="20 6 9 17 4 12"/></Icon>;
-        const Star = p => <Icon {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></Icon>;
-        const Plus = p => <Icon {...p}><path d="M5 12h14"/><path d="M12 5v14"/></Icon>;
-        const Edit2 = p => <Icon {...p}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></Icon>;
-        const X = p => <Icon {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></Icon>;
-        const Cloud = p => <Icon {...p}><path d="M17.5 19c0-3.037-2.463-5.5-5.5-5.5S6.5 15.963 6.5 19"/><path d="M12 13.5V4"/><path d="m16 8-4-4-4 4"/></Icon>;
-        const Moon = p => <Icon {...p}><path d="M12 3a6 6 0 0 0 9 9 9 0 1 1-9-9Z"/></Icon>;
-        const Sun = p => <Icon {...p}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></Icon>;
-        const Clock = p => <Icon {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Icon>;
-        const Fire = p => <Icon {...p}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.1.2-2.2.5-3.3.3-1.4 1.8-2.7 3-3.2v-.5c0 1.5 0 2.5 0 2.5z"/></Icon>;
-        const Trophy = p => <Icon {...p}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></Icon>;
-        const ArrowUp = p => <Icon {...p}><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></Icon>;
-        const ArrowDown = p => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></Icon>;
-        const Sort = p => <Icon {...p}><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></Icon>;
-        const BarChart2 = p => <Icon {...p}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></Icon>;
-        const Grid = p => <Icon {...p}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></Icon>;
-        const CalendarIcon = p => <Icon {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Icon>;
-        const Cake = p => <Icon {...p}><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><path d="M2 21h20"/><path d="M7 8v2"/><path d="M12 8v2"/><path d="M17 8v2"/><path d="M7 4h.01"/><path d="M12 4h.01"/><path d="M17 4h.01"/></Icon>;
-        const Play = p => <Icon {...p}><polygon points="5 3 19 12 5 21 5 3"/></Icon>;
-        const Pause = p => <Icon {...p}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></Icon>;
-        const Settings = p => <Icon {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></Icon>;
-        const Archive = p => <Icon {...p}><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></Icon>;
-        const Download = p => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></Icon>;
-        const Upload = p => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></Icon>;
-        const Trash2 = p => <Icon {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></Icon>;
-        const RotateCcw = p => <Icon {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></Icon>;
-        const Database = p => <Icon {...p}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></Icon>;
-
-        // --- CONSTANTS ---
-        const COLORS = [
-            { name: 'Slate', bg: 'bg-slate-100', text: 'text-slate-600', bar: 'bg-slate-500', dot: 'bg-slate-500', darkBg: 'dark:bg-slate-800', darkText: 'dark:text-slate-300' },
-            { name: 'Red', bg: 'bg-red-100', text: 'text-red-600', bar: 'bg-red-500', dot: 'bg-red-500', darkBg: 'dark:bg-red-900/30', darkText: 'dark:text-red-400' },
-            { name: 'Orange', bg: 'bg-orange-100', text: 'text-orange-600', bar: 'bg-orange-500', dot: 'bg-orange-500', darkBg: 'dark:bg-orange-900/30', darkText: 'dark:text-orange-400' },
-            { name: 'Amber', bg: 'bg-amber-100', text: 'text-amber-600', bar: 'bg-amber-500', dot: 'bg-amber-500', darkBg: 'dark:bg-amber-900/30', darkText: 'dark:text-amber-400' },
-            { name: 'Yellow', bg: 'bg-yellow-100', text: 'text-yellow-600', bar: 'bg-yellow-500', dot: 'bg-yellow-500', darkBg: 'dark:bg-yellow-900/30', darkText: 'dark:text-yellow-400' },
-            { name: 'Lime', bg: 'bg-lime-100', text: 'text-lime-600', bar: 'bg-lime-500', dot: 'bg-lime-500', darkBg: 'dark:bg-lime-900/30', darkText: 'dark:text-lime-400' },
-            { name: 'Emerald', bg: 'bg-emerald-100', text: 'text-emerald-600', bar: 'bg-emerald-500', dot: 'bg-emerald-500', darkBg: 'dark:bg-emerald-900/30', darkText: 'dark:text-emerald-400' },
-            { name: 'Teal', bg: 'bg-teal-100', text: 'text-teal-600', bar: 'bg-teal-500', dot: 'bg-teal-500', darkBg: 'dark:bg-teal-900/30', darkText: 'dark:text-teal-400' },
-            { name: 'Cyan', bg: 'bg-cyan-100', text: 'text-cyan-600', bar: 'bg-cyan-500', dot: 'bg-cyan-500', darkBg: 'dark:bg-cyan-900/30', darkText: 'dark:text-cyan-400' },
-            { name: 'Sky', bg: 'bg-sky-100', text: 'text-sky-600', bar: 'bg-sky-500', dot: 'bg-sky-500', darkBg: 'dark:bg-sky-900/30', darkText: 'dark:text-sky-400' },
-            { name: 'Blue', bg: 'bg-blue-100', text: 'text-blue-600', bar: 'bg-blue-500', dot: 'bg-blue-500', darkBg: 'dark:bg-blue-900/30', darkText: 'dark:text-blue-400' },
-            { name: 'Indigo', bg: 'bg-indigo-100', text: 'text-indigo-600', bar: 'bg-indigo-500', dot: 'bg-indigo-500', darkBg: 'dark:bg-indigo-900/30', darkText: 'dark:text-indigo-400' },
-            { name: 'Violet', bg: 'bg-violet-100', text: 'text-violet-600', bar: 'bg-violet-500', dot: 'bg-violet-500', darkBg: 'dark:bg-violet-900/30', darkText: 'dark:text-violet-400' },
-            { name: 'Purple', bg: 'bg-purple-100', text: 'text-purple-600', bar: 'bg-purple-500', dot: 'bg-purple-500', darkBg: 'dark:bg-purple-900/30', darkText: 'dark:text-purple-400' },
-            { name: 'Fuchsia', bg: 'bg-fuchsia-100', text: 'text-fuchsia-600', bar: 'bg-fuchsia-500', dot: 'bg-fuchsia-500', darkBg: 'dark:bg-fuchsia-900/30', darkText: 'dark:text-fuchsia-400' },
-            { name: 'Rose', bg: 'bg-rose-100', text: 'text-rose-600', bar: 'bg-rose-500', dot: 'bg-rose-500', darkBg: 'dark:bg-rose-900/30', darkText: 'dark:text-rose-400' },
-        ];
-        const EMOJIS = ["✍️", "💪", "📚", "💧", "🧘", "🏃", "🙏", "📱", "🥦", "💊", "💰", "🧠", "🚭", "🎨", "🎸", "🧹", "🦷", "🐶", "🌿", "⏰", "💤", "🌞", "🎓", "💼", "🛒", "⚔️", "🔥", "💎", "✈️", "🚀", "🎵", "📷", "⚽", "🏀", "🥗", "🍳", "🍺", "🍷", "🏠", "🛁", "🎁", "❤️", "✨", "💡", "🔌", "🔧", "💊", "🧬", "🧸", "🚲", "🏖️", "🏔️", "👟", "👞", "💄", "🧴", "🧼", "📝", "📵", "🚭"];
-        const CATEGORIES = ['All', 'Health', 'Work', 'Social', 'Learning', 'General'];
-        const DAYS_OF_WEEK = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-        const formatDateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        const isSameDayMonth = (date1, date2) => date1.getDate() === date2.getDate() && date1.getMonth() === date2.getMonth();
-        
-        // --- HELPERS ---
-        const calculateStreak = (habitId, completions, vacationMode) => {
-            let streak = 0; const today = new Date();
-            for (let i = 0; i < 365; i++) {
-                const d = new Date(); d.setDate(today.getDate() - i);
-                const k = formatDateKey(d);
-                if (completions[k]?.includes(habitId)) streak++; 
-                else if (vacationMode) continue; 
-                else if (i > 0) break;
-            }
-            return streak;
-        };
-
-        const MiniProgressBar = ({ value, max, colorClass }) => {
-            const percentage = max > 0 ? Math.min((value / max) * 100, 100) : 0;
-            return (<div className="w-full bg-gray-100 dark:bg-dark-700 rounded-full h-1.5 mt-3 overflow-hidden"><div className={`h-1.5 rounded-full transition-all duration-500 ease-out ${colorClass}`} style={{ width: `${percentage}%` }}></div></div>);
-        };
-
-        // --- CHARTS (Precision Logic) ---
-        const isHabitDueOnDate = (h, date, dateKey) => {
-            if (h.type === 'birthday' || h.type === 'event') return false; 
-            if (h.type === 'task') return h.targetDate === dateKey; 
-            const freq = h.frequency || [0,1,2,3,4,5,6];
-            if (h.type === 'habit' && !freq.includes(date.getDay())) return false;
-            return true; 
-        };
-
-        const YearHeatmap = ({ completions, habits }) => {
-            const heatmapRef = useRef(null);
-            useEffect(() => { if (heatmapRef.current) heatmapRef.current.scrollLeft = heatmapRef.current.scrollWidth; }, [habits]);
-            const data = useMemo(() => {
-                const weeks = 52; const grid = []; const today = new Date();
-                const dayOfWeek = today.getDay(); const endDate = new Date(today); endDate.setDate(today.getDate() + (6 - dayOfWeek));
-                for (let w = weeks - 1; w >= 0; w--) {
-                    const weekData = [];
-                    for (let d = 0; d < 7; d++) {
-                        const date = new Date(endDate); date.setDate(endDate.getDate() - (w * 7) - (6 - d));
-                        const k = formatDateKey(date);
-                        const dueHabits = habits.filter(h => !h.archived && isHabitDueOnDate(h, date, k));
-                        const completedCount = (completions[k] || []).filter(id => habits.some(h => h.id === id && isHabitDueOnDate(h, date, k))).length;
-                        const total = dueHabits.length;
-                        const val = total === 0 ? 0 : (completedCount / total);
-                        weekData.push({ date: date, key: k, val: val, isFuture: date > new Date() });
-                    }
-                    grid.unshift(weekData);
-                }
-                return grid;
-            }, [completions, habits]);
-            return (
-                <div ref={heatmapRef} className="h-full w-full overflow-x-auto overflow-y-hidden pb-1 scrollbar-thin flex flex-col justify-center">
-                    <div className="flex gap-[3px] min-w-max px-2">{data.map((week, wIndex) => (<div key={wIndex} className="flex flex-col gap-[3px]">{week.map((day) => (<div key={day.key} title={`${day.key}: ${Math.round(day.val * 100)}%`} className={`w-[10px] h-[10px] md:w-[12px] md:h-[12px] rounded-[2px] transition-colors ${day.isFuture ? 'bg-transparent' : day.val === 0 ? 'bg-gray-100 dark:bg-dark-700' : day.val >= 1 ? 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]' : day.val >= 0.7 ? 'bg-emerald-400' : day.val >= 0.4 ? 'bg-emerald-300' : 'bg-emerald-200 dark:bg-emerald-900'}`}></div>))}</div>))}</div>
-                </div>
-            );
-        };
-
-        const ConsistencyChart = ({ completions, habits }) => {
-            const data = useMemo(() => {
-                const days = 30; const result = []; const today = new Date();
-                for (let i = days - 1; i >= 0; i--) {
-                    const d = new Date(); d.setDate(today.getDate() - i); const dateKey = formatDateKey(d);
-                    const dueHabits = habits.filter(h => !h.archived && isHabitDueOnDate(h, d, dateKey));
-                    const completedCount = (completions[dateKey] || []).filter(id => habits.some(h => h.id === id && isHabitDueOnDate(h, d, dateKey))).length;
-                    const totalDue = dueHabits.length;
-                    const value = totalDue === 0 ? 0 : (completedCount / totalDue);
-                    result.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, fullDate: d.toLocaleDateString(), value: value });
-                }
-                return result;
-            }, [completions, habits]);
-            return (
-                <div className="h-full w-full overflow-x-auto pb-1 scrollbar-thin">
-                    <div className="flex items-end h-full gap-2 min-w-max px-1">{data.map((d, i) => (
-                        <div key={i} className="flex flex-col items-center w-6 flex-shrink-0 h-full justify-end group">
-                            <div className="w-full h-full flex items-end relative bg-gray-50 dark:bg-dark-800 rounded-md overflow-hidden">
-                                <div className={`w-full rounded-b-md rounded-t-sm transition-all duration-500 ${d.value >= 1 ? 'bg-emerald-500' : d.value >= 0.8 ? 'bg-blue-400' : d.value >= 0.5 ? 'bg-orange-400' : d.value > 0 ? 'bg-gray-400' : 'bg-transparent'}`} style={{ height: `${Math.min(d.value * 100, 100)}%` }}></div>
-                            </div>
-                            <span className="text-[9px] text-gray-400 mt-1.5 font-medium whitespace-nowrap">{d.label}</span>
-                        </div>
-                    ))}</div>
-                </div>
-            );
-        };
-
-        // --- COMPONENTS ---
-        const FocusTimer = ({ habit, onClose, onComplete }) => {
-            const [timeLeft, setTimeLeft] = useState(25 * 60);
-            const [isActive, setIsActive] = useState(false);
-            const formatTime = (seconds) => { const m = Math.floor(seconds / 60); const s = seconds % 60; return `${m}:${s < 10 ? '0' : ''}${s}`; };
-            useEffect(() => {
-                let interval = null;
-                if (isActive && timeLeft > 0) interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
-                else if (timeLeft === 0) { setIsActive(false); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); }
-                return () => clearInterval(interval);
-            }, [isActive, timeLeft]);
-            return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-dark-900 text-white modal-animate">
-                    <button onClick={onClose} className="absolute top-6 right-6 p-2 text-gray-400 hover:text-white"><X size={32}/></button>
-                    <div className="flex flex-col items-center gap-8">
-                        <div className="text-xl font-medium text-indigo-400 flex items-center gap-2">{habit.icon} {habit.name}</div>
-                        <div className="text-9xl font-bold font-mono tracking-tighter tabular-nums">{formatTime(timeLeft)}</div>
-                        <div className="flex gap-6">
-                            <button onClick={() => setIsActive(!isActive)} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${isActive ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>{isActive ? <Pause size={32} /> : <Play size={32} className="ml-1"/>}</button>
-                        </div>
-                        {timeLeft === 0 && <button onClick={onComplete} className="px-8 py-3 bg-white text-dark-900 font-bold rounded-full animate-bounce">Complete Task</button>}
-                    </div>
-                </div>
-            );
-        };
-
-        const SettingsModal = ({ isOpen, onClose, onImport, onExport, vacationMode, setVacationMode, onReset }) => {
-            if (!isOpen) return null;
-            return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl w-full max-w-sm modal-animate overflow-hidden max-h-[90vh] overflow-y-auto">
-                        <div className="px-6 py-4 border-b border-gray-100 dark:border-dark-700 flex justify-between items-center"><h3 className="font-bold text-gray-800 dark:text-gray-100">Settings</h3><button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button></div>
-                        <div className="p-6 space-y-6">
-                            {/* Vacation Mode */}
-                            <div className="flex items-center justify-between">
-                                <div><h4 className="text-sm font-bold dark:text-gray-200">Vacation Mode ✈️</h4><p className="text-[10px] text-gray-400">Pause streaks while away.</p></div>
-                                <div onClick={() => setVacationMode(!vacationMode)} className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer ${vacationMode ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-dark-600'}`}><div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${vacationMode ? 'translate-x-5' : ''}`}></div></div>
-                            </div>
-
-                            {/* Data Management */}
-                            <div>
-                                <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Data & Backup</h4>
-                                <div className="space-y-3">
-                                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-900/30 flex items-center gap-3">
-                                        <Database size={18} className="text-indigo-500"/>
-                                        <div className="flex-1"><p className="text-[10px] text-indigo-500 font-bold uppercase">Storage</p><p className="text-xs text-indigo-700 dark:text-indigo-300">Data saved locally.</p></div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={onExport} className="flex-1 py-2 bg-gray-50 dark:bg-dark-700 text-gray-600 dark:text-gray-300 rounded-lg text-xs font-bold flex items-center justify-center gap-2"><Download size={14}/> Export</button>
-                                        <label className="flex-1 py-2 bg-gray-50 dark:bg-dark-700 text-gray-600 dark:text-gray-300 rounded-lg text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"><Upload size={14}/> Import<input type="file" onChange={onImport} className="hidden" accept=".json"/></label>
-                                    </div>
-                                    <button onClick={onReset} className="w-full py-2 text-xs text-red-400 hover:text-red-500">Reset App Data</button>
-                                </div>
-                            </div>
-                            
-                            {/* Archive Link */}
-                            <button className="w-full py-3 border border-gray-200 dark:border-dark-700 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-400 flex items-center justify-center gap-2"><Archive size={16}/> View Archived Habits</button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const HabitModal = ({ isOpen, onClose, onSave, initialData, onDelete }) => {
-            const [name, setName] = useState('');
-            const [icon, setIcon] = useState(EMOJIS[0]);
-            const [color, setColor] = useState(COLORS[0]);
-            const [type, setType] = useState('habit');
-            const [category, setCategory] = useState('General');
-            const [difficulty, setDifficulty] = useState('easy');
-            const [useTimer, setUseTimer] = useState(false);
-            const [monthlyGoal, setMonthlyGoal] = useState('');
-            const [time, setTime] = useState('');
-            const [frequency, setFrequency] = useState([0,1,2,3,4,5,6]); 
-            const [targetDate, setTargetDate] = useState(formatDateKey(new Date()));
-
-            useEffect(() => {
-                if (isOpen) {
-                    if (initialData) {
-                        setName(initialData.name); setIcon(initialData.icon); setColor(initialData.color);
-                        if(initialData.type) setType(initialData.type); else setType(initialData.isTask ? 'task' : 'habit');
-                        setCategory(initialData.category || 'General'); setDifficulty(initialData.difficulty || 'easy');
-                        setUseTimer(!!initialData.useTimer); setMonthlyGoal(initialData.monthlyGoal || '');
-                        setTime(initialData.time || ''); 
-                        setFrequency(initialData.frequency || [0,1,2,3,4,5,6]); setTargetDate(initialData.targetDate || formatDateKey(new Date()));
-                    } else {
-                        setName(''); setIcon(EMOJIS[0]); setColor(COLORS[11]); setType('habit'); setCategory('General'); setDifficulty('easy'); setUseTimer(false); setMonthlyGoal(''); setTime(''); setFrequency([0,1,2,3,4,5,6]);
-                    }
-                }
-            }, [isOpen, initialData]);
-
-            const toggleDay = (dayIndex) => { if (frequency.includes(dayIndex)) setFrequency(frequency.filter(d => d !== dayIndex)); else setFrequency([...frequency, dayIndex].sort()); };
-
-            if (!isOpen) return null;
-
-            return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl w-full max-w-sm modal-animate overflow-hidden max-h-[90vh] overflow-y-auto">
-                        <div className="px-6 py-4 border-b border-gray-100 dark:border-dark-700 flex justify-between items-center"><h3 className="font-bold text-gray-800 dark:text-gray-100">{initialData ? 'Edit' : 'New'}</h3><button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button></div>
-                        <form onSubmit={(e) => { e.preventDefault(); onSave({ id: initialData?.id, name, icon, color, type, category, difficulty, useTimer, monthlyGoal: parseInt(monthlyGoal) || 0, time, frequency, targetDate }); onClose(); }} className="p-6 space-y-5">
-                            {/* Type Selector */}
-                            <div className="grid grid-cols-4 gap-1 bg-gray-100 dark:bg-dark-900 p-1 rounded-lg">
-                                {['habit', 'task', 'event', 'birthday'].map(t => (<button key={t} type="button" onClick={() => setType(t)} className={`py-2 rounded-md text-[10px] font-bold uppercase transition-all ${type === t ? 'bg-white dark:bg-dark-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`}>{t === 'habit' ? 'Routine' : t}</button>))}
-                            </div>
-                            
-                            <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Name</label><input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-white" /></div>
-                            
-                            {/* Category */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Category</label>
-                                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin flex gap-1">
-                                    {CATEGORIES.slice(1).map(c => (<button key={c} type="button" onClick={() => setCategory(c)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border whitespace-nowrap ${category === c ? 'bg-indigo-100 border-indigo-500 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' : 'border-gray-200 dark:border-dark-700 text-gray-500'}`}>{c}</button>))}
-                                </div>
-                            </div>
-
-                            {(type === 'habit' || type === 'task') && (
-                            <div className="space-y-4">
-                                <div className="flex gap-2">{['easy', 'medium', 'hard'].map(d => (<button key={d} type="button" onClick={() => setDifficulty(d)} className={`flex-1 py-2 rounded-lg text-xs font-bold border capitalize transition-all ${difficulty === d ? d==='hard' ? 'bg-yellow-50 border-yellow-500 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400' : 'bg-indigo-50 border-indigo-500 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' : 'border-gray-200 dark:border-dark-700 text-gray-400'}`}>{d==='hard'?'Heroic':d}</button>))}</div>
-                                <div className="flex gap-3">
-                                    <div className="flex-1"><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Monthly Goal</label><input type="number" placeholder="Optional" value={monthlyGoal} onChange={e => setMonthlyGoal(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none text-sm dark:text-white" /></div>
-                                    <div className="flex-1 flex items-end"><div onClick={() => setUseTimer(!useTimer)} className={`w-full flex items-center justify-center p-3 rounded-xl border cursor-pointer transition-colors ${useTimer ? 'bg-indigo-50 border-indigo-500 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' : 'bg-gray-50 border-gray-200 dark:bg-dark-900 text-gray-500'}`}><div className="flex items-center gap-2"><Clock size={16} /><span className="text-xs font-bold">Timer</span></div></div></div>
-                                </div>
-                            </div>
-                            )}
-
-                            <div className="flex gap-3">
-                                <div className="flex-1"><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Time</label><input type="time" value={time} onChange={e => setTime(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none text-sm dark:text-white" /></div>
-                                {(type !== 'habit') && <div className="flex-1"><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Date</label><input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none text-sm dark:text-white" /></div>}
-                            </div>
-                            
-                            {type === 'habit' && (<div><label className="block text-xs font-bold text-gray-400 uppercase mb-2">Frequency</label><div className="flex justify-between">{DAYS_OF_WEEK.map((d, i) => (<button key={i} type="button" onClick={() => toggleDay(i)} className={`w-8 h-8 rounded-full text-xs font-bold transition-all ${frequency.includes(i) ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 dark:bg-dark-700 text-gray-400'}`}>{d}</button>))}</div></div>)}
-                            
-                            <div className="flex justify-between items-center pt-2">
-                                {initialData && <div className="flex gap-2"><button type="button" onClick={() => { onDelete(initialData.id); onClose(); }} className="p-3 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-xl"><Trash2 size={18}/></button><button type="button" onClick={() => { onSave({...initialData, archived: !initialData.archived}); onClose(); }} className="p-3 text-gray-500 bg-gray-100 dark:bg-dark-700 rounded-xl" title="Archive"><Archive size={18}/></button></div>}
-                                <button type="submit" className="flex-1 ml-3 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md">Save</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            );
-        };
-
-        const NoteModal = ({ isOpen, onClose, habit, streak, notes, onSaveNote }) => {
-            const [note, setNote] = useState('');
-            useEffect(() => { if (isOpen && notes) setNote(notes || ''); }, [isOpen, notes]);
-            if (!isOpen || !habit) return null;
-            return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-2xl w-full max-w-sm modal-animate p-6">
-                        <div className="flex justify-between items-start mb-4"><div><div className="text-3xl mb-1">{habit.icon}</div><h2 className="text-xl font-bold dark:text-white">{habit.name}</h2></div></div>
-                        <textarea placeholder="Add details..." value={note} onChange={e => setNote(e.target.value)} className="w-full h-32 p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-gray-200 mb-4" />
-                        <div className="flex gap-3"><button onClick={onClose} className="flex-1 py-3 text-gray-500 font-bold">Cancel</button><button onClick={() => { onSaveNote(habit.id, note); onClose(); }} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Save</button></div>
-                    </div>
-                </div>
-            );
-        };
-
-        const App = () => {
-            // Local Storage Initialization
-            const [habits, setHabits] = useState([]);
-            const [completions, setCompletions] = useState({});
-            const [dailyNotes, setDailyNotes] = useState({});
-            const [vacationMode, setVacationMode] = useState(false);
-            const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
-            const [status, setStatus] = useState('local'); // Always local
-            const [currentDate, setCurrentDate] = useState(new Date());
-            const [selectedDate, setSelectedDate] = useState(new Date());
-            const [isModalOpen, setIsModalOpen] = useState(false);
-            const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-            const [editingHabit, setEditingHabit] = useState(null);
-            const [detailHabit, setDetailHabit] = useState(null);
-            const [isReorderMode, setIsReorderMode] = useState(false);
-            const [chartMode, setChartMode] = useState('heatmap');
-            const [selectedCategory, setSelectedCategory] = useState('All');
-            const [activeFocusHabit, setActiveFocusHabit] = useState(null);
-
-            // Load Data from Local Storage
-            useEffect(() => {
-                const loadedData = localStorage.getItem('habit_os_data');
-                if (loadedData) {
-                    try {
-                        const parsed = JSON.parse(loadedData);
-                        setHabits(parsed.habits || []);
-                        setCompletions(parsed.completions || {});
-                        setDailyNotes(parsed.dailyNotes || {});
-                        setVacationMode(parsed.vacationMode || false);
-                    } catch (e) { console.error("Load error", e); }
-                }
-            }, []);
-
-            // Save Data to Local Storage whenever state changes
-            useEffect(() => {
-                const dataToSave = { habits, completions, dailyNotes, vacationMode };
-                localStorage.setItem('habit_os_data', JSON.stringify(dataToSave));
-            }, [habits, completions, dailyNotes, vacationMode]);
-
-            useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
-
-            const saveData = (newHabits, newCompletions, newNotes, newVacationMode) => {
-                setHabits(newHabits); setCompletions(newCompletions); setDailyNotes(newNotes); setVacationMode(newVacationMode);
-            };
-
-            const handleSaveHabit = (habit) => { 
-                const newHabits = habit.id && habits.some(h => h.id === habit.id) ? habits.map(h => h.id === habit.id ? habit : h) : [...habits, { ...habit, id: Date.now().toString(), order: habits.length }]; 
-                saveData(newHabits, completions, dailyNotes, vacationMode); 
-            };
-            const handleDeleteHabit = (id) => saveData(habits.filter(h => h.id !== id), completions, dailyNotes, vacationMode);
-            const handleSaveNote = (habitId, text) => { const key = `${habitId}_${formatDateKey(selectedDate)}`; const newNotes = { ...dailyNotes, [key]: text }; saveData(habits, completions, newNotes, vacationMode); };
-            const toggleHabit = (id, dateKey) => { const current = completions[dateKey] || []; const newC = { ...completions, [dateKey]: current.includes(id) ? current.filter(x => x !== id) : [...current, id] }; saveData(habits, newC, dailyNotes, vacationMode); };
-            
-            const moveHabit = (id, direction) => {
-                const index = habits.findIndex(h => h.id === id);
-                if (index < 0) return;
-                const newHabits = [...habits];
-                const targetIndex = index + direction;
-                if (targetIndex >= 0 && targetIndex < newHabits.length) {
-                    const temp = newHabits[index].order || index;
-                    newHabits[index].order = newHabits[targetIndex].order || targetIndex;
-                    newHabits[targetIndex].order = temp;
-                    [newHabits[index], newHabits[targetIndex]] = [newHabits[targetIndex], newHabits[index]];
-                    saveData(newHabits, completions, dailyNotes, vacationMode);
-                }
-            };
-
-            // Rollover Logic
-            const getRolloverCount = () => {
-                const todayStr = formatDateKey(new Date());
-                return habits.filter(h => h.type === 'task' && !h.archived && h.targetDate < todayStr && !completions[h.targetDate]?.includes(h.id)).length;
-            };
-            const executeRollover = () => {
-                const todayStr = formatDateKey(new Date());
-                const newHabits = habits.map(h => {
-                    if(h.type === 'task' && !h.archived && h.targetDate < todayStr && !completions[h.targetDate]?.includes(h.id)) {
-                        return { ...h, targetDate: todayStr };
-                    }
-                    return h;
-                });
-                saveData(newHabits, completions, dailyNotes, vacationMode);
-                alert("Tasks moved to today!");
-            };
-
-            // Data Export/Import
-            const handleExport = () => {
-                const data = JSON.stringify({ habits, completions, dailyNotes, vacationMode });
-                const blob = new Blob([data], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = 'habit-os-backup.json'; a.click();
-            };
-            const handleImport = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    try {
-                        const parsed = JSON.parse(event.target.result);
-                        if(parsed.habits) {
-                            saveData(parsed.habits, parsed.completions || {}, parsed.dailyNotes || {}, parsed.vacationMode || false);
-                            alert("Data imported successfully!");
-                        }
-                    } catch(err) { alert("Invalid file"); }
-                };
-                reader.readAsText(file);
-            };
-            
-            const handleReset = () => {
-                if(confirm("Are you sure? This will delete all data.")) {
-                    localStorage.removeItem('habit_os_data');
-                    window.location.reload();
-                }
-            }
-
-            const year = currentDate.getFullYear(); const month = currentDate.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay();
-            const selectedDateKey = formatDateKey(selectedDate); const todayKey = formatDateKey(new Date());
-
-            const getMonthCompletionCount = (habitId) => {
-                let count = 0;
-                for(let d=1; d<=daysInMonth; d++) {
-                    const k = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                    if(completions[k]?.includes(habitId)) count++;
-                }
-                return count;
-            };
-            
-            const visibleCategories = useMemo(() => {
-                const active = new Set(habits.filter(h => !h.archived).map(h => h.category || 'General'));
-                return ['All', ...CATEGORIES.slice(1).filter(c => active.has(c))];
-            }, [habits]);
-
-            const todaysHabits = habits.filter(h => {
-                if (h.archived) return false;
-                
-                // Regular Schedule Logic
-                const type = h.type || (h.isTask ? 'task' : 'habit');
-                const catMatch = selectedCategory === 'All' || (h.category === selectedCategory) || (!h.category && selectedCategory === 'General');
-                if (!catMatch) return false;
-                
-                if (type === 'birthday') return isSameDayMonth(new Date(h.targetDate), selectedDate);
-                if (type === 'task' || type === 'event') return h.targetDate === selectedDateKey;
-                const freq = h.frequency || [0,1,2,3,4,5,6];
-                if (type === 'habit' && !freq.includes(selectedDate.getDay())) return false;
-                return true;
-            }).sort((a, b) => {
-                if (a.order !== undefined && b.order !== undefined) return a.order - b.order;
-                if (a.time && !b.time) return -1; if (!a.time && b.time) return 1; if (a.time && b.time) return a.time.localeCompare(b.time); return 0;
-            });
-
-            const getIndicators = (date) => {
-                const k = formatDateKey(date); const dots = [];
-                habits.forEach(h => {
-                    if (h.archived) return;
-                    const type = h.type || (h.isTask ? 'task' : 'habit');
-                    let showDot = false; let color = 'bg-gray-300';
-                    if (type === 'birthday' && isSameDayMonth(new Date(h.targetDate), date)) { showDot = true; color = 'bg-pink-400'; }
-                    else if (type === 'event' && h.targetDate === k) { showDot = true; color = 'bg-blue-400'; }
-                    else if (type === 'task' && h.targetDate === k) { showDot = true; color = 'bg-gray-400'; }
-                    if (showDot) dots.push(color);
-                });
-                return dots.slice(0, 3);
-            };
-
-            useEffect(() => {
-                if (todaysHabits.length > 0 && selectedDateKey === todayKey) {
-                    const checkables = todaysHabits.filter(h => { const t = h.type || (h.isTask ? 'task' : 'habit'); return t === 'habit' || t === 'task'; });
-                    if(checkables.length > 0) {
-                        const completedCount = checkables.filter(h => completions[selectedDateKey]?.includes(h.id)).length;
-                        if (completedCount === checkables.length) { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); }
-                    }
-                }
-            }, [completions, selectedDateKey]);
-
-            const renderCalendar = () => {
-                const days = []; for(let i=0; i<firstDay; i++) days.push(<div key={`empty-${i}`} className="h-full bg-gray-50/50 dark:bg-dark-900 border-b border-r border-gray-100 dark:border-dark-700"></div>);
-                for(let d=1; d<=daysInMonth; d++) {
-                    const date = new Date(year, month, d); const k = formatDateKey(date);
-                    const dayData = completions[k] || []; const isToday = k === todayKey; const isSelected = k === selectedDateKey;
-                    const indicators = getIndicators(date);
-                    days.push(<div key={d} onClick={() => setSelectedDate(date)} className={`h-16 md:h-24 p-1 md:p-2 border-b border-r border-gray-100 dark:border-dark-700 cursor-pointer relative transition-colors ${isSelected ? 'bg-indigo-50/60 dark:bg-indigo-900/20' : 'hover:bg-gray-50 dark:hover:bg-dark-800'}`}>
-                        <div className="flex justify-between items-center"><span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${isToday ? 'bg-indigo-600 text-white' : isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>{d}</span>{dayData.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>}</div>
-                        <div className="flex gap-1 mt-1 justify-end">{indicators.map((col, idx) => <div key={idx} className={`w-1.5 h-1.5 rounded-full ${col}`}></div>)}</div>
-                    </div>);
-                }
-                return days;
-            };
-
-            const rolloverCount = getRolloverCount();
-
-            return (
-                <div className="flex flex-col md:flex-row h-screen overflow-hidden selection:bg-indigo-100 text-slate-800 dark:text-slate-200 font-sans">
-                    {/* LEFT SIDEBAR */}
-                    <div className="w-80 bg-white dark:bg-dark-800 border-r border-gray-200 dark:border-dark-700 hidden md:flex flex-col z-20">
-                        <div className="p-6 border-b border-gray-100 dark:border-dark-700 flex items-center justify-between">
-                            <div className="flex items-center gap-3"><div className="bg-indigo-600 text-white p-2 rounded-lg"><Trophy size={20} /></div><div><h1 className="font-bold text-lg leading-tight dark:text-white">Habit OS</h1><p className="text-xs text-indigo-500 font-medium">Local Edition</p></div></div>
-                            <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-gray-400 hover:text-indigo-500"><Settings size={20}/></button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
-                            <div className="space-y-3">{habits.filter(h => (!h.type || h.type === 'habit') && !h.archived).map(h => { 
-                                const monthlyCount = getMonthCompletionCount(h.id);
-                                return (<div key={h.id} className="group p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-700 border border-transparent hover:border-gray-100 dark:hover:border-dark-600 transition-all">
-                                    <div className="flex items-center justify-between mb-1"><div className="flex items-center gap-3"><span className="text-xl">{h.icon}</span><span className="text-sm font-medium dark:text-gray-200">{h.name}</span></div><div className="flex items-center gap-2"><span className="text-xs font-bold text-gray-400">{h.monthlyGoal > 0 ? `${monthlyCount} / ${h.monthlyGoal}` : ''}</span><button onClick={() => { setEditingHabit(h); setIsModalOpen(true); }} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-indigo-600"><Edit2 size={12} /></button></div></div>
-                                    {h.monthlyGoal > 0 ? (<MiniProgressBar value={monthlyCount} max={h.monthlyGoal} colorClass={h.color.bar} />) : (<div className="mt-1 flex items-center text-[10px] text-gray-400 gap-1"><Fire size={12} className="text-orange-500" /> {calculateStreak(h.id, completions, vacationMode)} Day Streak</div>)}
-                                </div>); 
-                            })}</div>
-                        </div>
-                    </div>
-
-                    {/* CENTER (Calendar) */}
-                    <div className="flex-1 flex flex-col bg-white dark:bg-dark-900 h-[50%] md:h-full relative order-1">
-                        <header className="glass px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-gray-100 dark:border-dark-700 z-30 bg-white/80 dark:bg-dark-900/80 sticky top-0">
-                            <div className="flex items-center gap-2 md:gap-4"><h2 className="text-lg md:text-xl font-bold text-gray-800 dark:text-white">{currentDate.toLocaleString('default', { month: 'long' })} {year}</h2><div className="flex bg-gray-100 dark:bg-dark-800 rounded-lg p-1"><button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="p-1 hover:bg-white dark:hover:bg-dark-700 rounded shadow-sm"><ChevronLeft size={16}/></button><button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-1 hover:bg-white dark:hover:bg-dark-700 rounded shadow-sm"><ChevronRight size={16}/></button></div></div>
-                            <div className="flex items-center gap-3"><button onClick={() => setDarkMode(!darkMode)} className="p-2 text-gray-400 hover:text-indigo-500 transition-colors">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><button onClick={() => {const now=new Date(); setCurrentDate(now); setSelectedDate(now);}} className="text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full">Today</button></div>
-                        </header>
-                        <div className="flex-1 overflow-auto min-h-0"><div className="grid grid-cols-7 border-b border-gray-100 dark:border-dark-700 sticky top-0 bg-white/95 dark:bg-dark-900/95 z-20 text-center py-2 text-xs font-bold text-gray-400 uppercase">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d}>{d}</div>)}</div><div className="grid grid-cols-7 auto-rows-fr">{renderCalendar()}</div></div>
-                        <div className="h-32 md:h-44 bg-white dark:bg-dark-900 border-t border-gray-100 dark:border-dark-700 p-2 md:p-4 flex flex-col flex-shrink-0 relative z-20">
-                            <div className="flex items-center gap-2 mb-2 justify-between">
-                                <div className="flex items-center gap-2"><Cloud size={16} className="text-gray-400" /><h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Consistency</h3></div>
-                                <div className="flex bg-gray-100 dark:bg-dark-800 rounded p-0.5"><button onClick={() => setChartMode('bar')} className={`p-1 rounded ${chartMode === 'bar' ? 'bg-white dark:bg-dark-700 shadow text-indigo-500' : 'text-gray-400'}`}><BarChart2 size={14}/></button><button onClick={() => setChartMode('heatmap')} className={`p-1 rounded ${chartMode === 'heatmap' ? 'bg-white dark:bg-dark-700 shadow text-indigo-500' : 'text-gray-400'}`}><Grid size={14}/></button></div>
-                            </div>
-                            <div className="flex-1 min-h-0">{chartMode === 'heatmap' ? <YearHeatmap completions={completions} habits={habits} /> : <ConsistencyChart completions={completions} habits={habits} />}</div>
-                        </div>
-                    </div>
-
-                    {/* RIGHT SIDEBAR (Agenda) */}
-                    <div className="w-full md:w-96 bg-gray-50 dark:bg-dark-800/50 border-t md:border-t-0 md:border-l border-gray-200 dark:border-dark-700 flex flex-col z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] md:shadow-xl h-[50%] md:h-full order-2">
-                        {rolloverCount > 0 && (
-                            <div className="bg-indigo-600 text-white p-3 flex justify-between items-center text-xs font-bold shadow-md relative z-40">
-                                <span>{rolloverCount} overdue tasks.</span>
-                                <button onClick={executeRollover} className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded flex items-center gap-1"><RotateCcw size={12}/> Move to Today</button>
-                            </div>
-                        )}
-                        <div className="glass px-6 py-4 md:p-6 border-b border-gray-200/50 dark:border-dark-700 flex flex-col gap-3 sticky top-0 z-30">
-                            <div className="flex justify-between items-center">
-                                <div><h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}</h2><p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm">{selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p></div>
-                                <div className="flex items-center gap-3"><button onClick={() => setIsReorderMode(!isReorderMode)} className={`p-2 rounded-lg transition-colors ${isReorderMode ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-white' : 'text-gray-400 hover:text-gray-600'}`}><Sort size={20}/></button><div className="md:hidden"><button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="bg-indigo-600 text-white p-2 rounded-lg shadow-sm"><Plus size={18} /></button></div></div>
-                            </div>
-                            {/* Category Filter Pills (Dynamic) */}
-                            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                                {visibleCategories.map(c => (
-                                    <button key={c} onClick={() => setSelectedCategory(c)} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap ${selectedCategory === c ? 'bg-gray-800 text-white dark:bg-white dark:text-black' : 'bg-white dark:bg-dark-700 text-gray-500 border border-gray-100 dark:border-dark-600'}`}>{c}</button>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 scrollbar-thin">
-                            {todaysHabits.length === 0 ? (<div className="text-center py-10 text-gray-400 dark:text-gray-600"><div className="text-4xl mb-2">🏖️</div><p className="text-sm font-medium">Nothing scheduled.</p></div>) : 
-                            (<div className="space-y-3">{todaysHabits.map(h => { 
-                                const isDone = completions[selectedDateKey]?.includes(h.id); 
-                                const streak = calculateStreak(h.id, completions, vacationMode);
-                                const type = h.type || (h.isTask ? 'task' : 'habit');
-                                const isHeroic = h.difficulty === 'hard';
-                                const isEvent = type === 'event' || type === 'birthday';
-                                
-                                return (
-                                <div key={h.id} onMouseDown={() => handleTouchStart(h)} onMouseUp={handleTouchEnd} onMouseLeave={handleTouchEnd} onTouchStart={() => handleTouchStart(h)} onTouchEnd={handleTouchEnd} onClick={() => { if(!longPressTimer.current && !isReorderMode) toggleHabit(h.id, selectedDateKey); }} 
-                                    className={`no-select relative group flex items-center p-3.5 rounded-2xl border transition-all duration-200 transform 
-                                    ${isReorderMode ? 'border-indigo-300 dark:border-indigo-800' : 'cursor-pointer active:scale-95'}
-                                    ${isHeroic && !isDone ? 'border-amber-400/50 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-500/30' : ''}
-                                    ${type === 'birthday' ? 'border-pink-200 bg-pink-50 dark:bg-pink-900/10 dark:border-pink-500/30' : ''}
-                                    ${type === 'event' ? 'border-blue-200 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-500/30' : ''}
-                                    ${isDone ? 'bg-white/50 dark:bg-dark-700/50 border-transparent opacity-70' : (
-                                        (type === 'habit' && !isHeroic) || type === 'task' ? 'bg-white dark:bg-dark-700 border-gray-100 dark:border-dark-600 shadow-sm' : 'shadow-md shadow-gray-100 dark:shadow-none'
-                                    )}
-                                    `}>
-                                    
-                                    {isReorderMode ? (
-                                        <div className="flex flex-col gap-1 mr-3 text-gray-400"><button onClick={(e) => {e.stopPropagation(); moveHabit(h.id, -1)}} className="hover:text-indigo-600 p-1"><ArrowUp size={14}/></button><button onClick={(e) => {e.stopPropagation(); moveHabit(h.id, 1)}} className="hover:text-indigo-600 p-1"><ArrowDown size={14}/></button></div>
-                                    ) : (
-                                        <div className={`w-6 h-6 rounded-lg mr-3 flex items-center justify-center transition-colors ${isDone ? `${h.color.dot} text-white` : (type === 'birthday' ? 'bg-pink-100 text-pink-500 dark:bg-pink-900/30' : type === 'event' ? 'bg-blue-100 text-blue-500 dark:bg-blue-900/30' : isHeroic ? 'bg-amber-100 text-amber-500 dark:bg-amber-900/30' : 'bg-gray-100 dark:bg-dark-800 text-transparent')}`}>
-                                            {isHeroic && !isDone ? <Star size={14} fill="currentColor" /> : type === 'birthday' ? <Cake size={14} /> : type === 'event' ? <CalendarIcon size={14} /> : <Check size={14} strokeWidth={3} />}
-                                        </div>
-                                    )}
-                                    
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2"><span className="text-lg">{h.icon}</span><span className={`text-sm font-bold truncate ${isDone ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>{h.name}</span></div>
-                                            <div className="flex items-center gap-1">
-                                                {/* Focus Button */}
-                                                {!isDone && (type === 'habit' || type === 'task') && !isReorderMode && h.useTimer && 
-                                                    <button onClick={(e) => { e.stopPropagation(); setActiveFocusHabit(h); }} className="p-1 text-gray-300 hover:text-indigo-500 transition-colors"><Play size={14} fill="currentColor" /></button>
-                                                }
-                                                {isHeroic && !isDone && <span className="text-[9px] font-black bg-gradient-to-r from-amber-400 to-orange-500 text-white px-1.5 py-0.5 rounded shadow-sm">HEROIC</span>}
-                                                {type === 'birthday' && <span className="text-[9px] font-bold text-pink-500 bg-pink-100 dark:bg-pink-900/30 px-1.5 py-0.5 rounded">BDAY</span>}
-                                                {!isDone && !isHeroic && !isEvent && streak > 2 && <div className="flex items-center text-[10px] font-bold text-orange-500 gap-0.5"><Fire size={12} /> {streak}</div>}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            {h.time && <span className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded"><Clock size={10} /> {h.time}</span>}
-                                            {type === 'task' && <span className="text-[9px] font-bold bg-gray-100 dark:bg-dark-600 text-gray-500 px-1.5 py-0.5 rounded uppercase tracking-wide">Task</span>}
-                                            {type === 'event' && <span className="text-[9px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-500 px-1.5 py-0.5 rounded uppercase tracking-wide">Event</span>}
-                                            {h.category && h.category !== 'General' && <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide border border-gray-100 dark:border-dark-600 px-1.5 py-0.5 rounded">{h.category}</span>}
-                                        </div>
-                                    </div>
-                                </div>); 
-                            })}</div>)}
-                        </div>
-                        <div className="hidden md:block p-4 border-t border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900"><button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg transition-transform hover:-translate-y-0.5">+ Add Item</button></div>
-                    </div>
-                    
-                    {/* MODALS */}
-                    <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} userId={userId} setUserId={setUserId} onImport={handleImport} onExport={handleExport} vacationMode={vacationMode} setVacationMode={setVacationMode} onReset={handleReset} />
-                    <HabitModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveHabit} onDelete={handleDeleteHabit} initialData={editingHabit} />
-                    <NoteModal isOpen={!!detailHabit} onClose={() => setDetailHabit(null)} habit={detailHabit} streak={detailHabit ? calculateStreak(detailHabit.id, completions) : 0} notes={detailHabit ? dailyNotes[`${detailHabit.id}_${selectedDateKey}`] : ''} onSaveNote={handleSaveNote} />
-                    {activeFocusHabit && <FocusTimer habit={activeFocusHabit} onClose={() => setActiveFocusHabit(null)} onComplete={() => { toggleHabit(activeFocusHabit.id, selectedDateKey); setActiveFocusHabit(null); }} />}
-                </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Habit OS Stable Pro</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif}
+body{min-height:100vh;display:flex;align-items:stretch;justify-content:center;background:radial-gradient(circle at top,#1e293b 0,#020617 55%,#000 100%);color:#e5e7eb}
+#app{width:100%;max-width:1180px;margin:16px;padding:14px 14px 16px;border-radius:22px;background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(15,23,42,.9));backdrop-filter:blur(20px);box-shadow:0 24px 60px rgba(0,0,0,.7);display:flex;flex-direction:column;gap:10px;border:1px solid rgba(148,163,184,.25)}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px}
+h1{font-size:20px;font-weight:650;letter-spacing:.03em;display:flex;align-items:center;gap:6px}
+h1 span{display:inline-flex;width:18px;height:18px;border-radius:999px;background:radial-gradient(circle,#facc15,#f97316);box-shadow:0 0 10px rgba(250,204,21,.7)}
+small{opacity:.7;font-size:11px}
+button{border:none;border-radius:999px;padding:5px 11px;font-size:11px;cursor:pointer;background:rgba(15,23,42,.9);color:#e5e7eb;display:inline-flex;align-items:center;gap:5px;transition:.15s all ease-out}
+button.primary{background:linear-gradient(135deg,#4f46e5,#6366f1);box-shadow:0 0 0 1px rgba(129,140,248,.6),0 10px 25px rgba(79,70,229,.6)}
+button.primary:hover{transform:translateY(-1px);box-shadow:0 0 0 1px rgba(191,219,254,.7),0 14px 32px rgba(79,70,229,.8)}
+button.ghost{background:transparent;border:1px solid rgba(148,163,184,.4)}
+button.ghost:hover{background:rgba(15,23,42,.8)}
+button.chip{padding:3px 8px;border-radius:999px;background:rgba(15,23,42,.9);border:1px solid rgba(148,163,184,.4);font-size:10px}
+button.danger{background:linear-gradient(135deg,#b91c1c,#ef4444)}
+.badge{font-size:10px;border-radius:999px;padding:2px 7px;background:rgba(15,23,42,.9);border:1px solid rgba(148,163,184,.4)}
+.badge.habit{background:rgba(79,70,229,.15);border-color:rgba(129,140,248,.7);color:#c7d2fe}
+.badge.task{background:rgba(16,185,129,.15);border-color:rgba(45,212,191,.7);color:#a7f3d0}
+.badge.event{background:rgba(59,130,246,.15);border-color:rgba(96,165,250,.7);color:#bfdbfe}
+.badge.birthday{background:rgba(236,72,153,.15);border-color:rgba(244,114,182,.7);color:#f9a8d4}
+.layout{display:grid;grid-template-columns:1.1fr 1.25fr 1.1fr;gap:10px}
+.col{border-radius:18px;padding:10px 10px 11px;background:radial-gradient(circle at top left,rgba(30,64,175,.18),rgba(15,23,42,.96));border:1px solid rgba(148,163,184,.25);box-shadow:0 14px 30px rgba(15,23,42,.7);display:flex;flex-direction:column;gap:8px;position:relative;overflow:hidden}
+.col::before{content:"";position:absolute;inset:-40%;background:radial-gradient(circle at 0 0,rgba(129,140,248,.18),transparent 55%);opacity:.7;pointer-events:none}
+.col-inner{position:relative;z-index:1;display:flex;flex-direction:column;gap:8px}
+.col h2{font-size:12px;font-weight:600;display:flex;justify-content:space-between;align-items:center;letter-spacing:.08em;text-transform:uppercase;color:#cbd5f5}
+.sub{font-size:10px;opacity:.7}
+.list{display:flex;flex-direction:column;gap:6px;overflow:auto;max-height:430px;padding-right:2px}
+.card{border-radius:14px;padding:8px 9px;background:linear-gradient(135deg,rgba(15,23,42,.96),rgba(15,23,42,.9));border:1px solid rgba(55,65,81,.9);display:flex;align-items:center;gap:8px;justify-content:space-between;font-size:12px;box-shadow:0 10px 22px rgba(15,23,42,.9);transition:.15s all ease-out}
+.card:hover{transform:translateY(-1px);border-color:rgba(129,140,248,.9);box-shadow:0 16px 32px rgba(15,23,42,1)}
+.card-main{display:flex;align-items:center;gap:8px;flex:1}
+.icon{width:26px;height:26px;border-radius:999px;background:radial-gradient(circle at 30% 0,#facc15,#4f46e5);display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 0 1px rgba(15,23,42,1),0 0 18px rgba(129,140,248,.8)}
+.icon.hero{background:radial-gradient(circle at 30% 0,#f97316,#facc15)}
+.meta{font-size:10px;opacity:.8;margin-top:1px}
+.progress-shell{width:100%;height:5px;border-radius:999px;background:rgba(15,23,42,1);margin-top:4px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(30,64,175,.7)}
+.progress-bar{height:100%;border-radius:999px;background:linear-gradient(90deg,#22c55e,#4ade80);transition:width .25s ease-out}
+.progress-bar.orange{background:linear-gradient(90deg,#f97316,#facc15)}
+.progress-bar.gray{background:linear-gradient(90deg,#4b5563,#9ca3af)}
+.top-metrics{display:flex;gap:6px;font-size:11px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.top-metrics span{padding:4px 9px;border-radius:999px;background:rgba(15,23,42,.9);border:1px solid rgba(55,65,81,.9);display:inline-flex;align-items:center;gap:4px}
+.pill-dot{width:7px;height:7px;border-radius:999px;background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.9)}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:11px;margin-top:4px}
+.day-head{opacity:.6;text-align:center;margin-bottom:2px;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+.day{border-radius:10px;padding:4px 4px 6px;background:radial-gradient(circle at top,rgba(15,23,42,1),rgba(15,23,42,.96));border:1px solid rgba(31,41,55,1);min-height:58px;display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:.15s all ease-out;position:relative;overflow:hidden}
+.day::after{content:"";position:absolute;inset:-40%;background:radial-gradient(circle at 0 0,rgba(129,140,248,.18),transparent 55%);opacity:0;transition:.2s opacity}
+.day:hover{border-color:rgba(129,140,248,.9);transform:translateY(-1px);box-shadow:0 10px 24px rgba(15,23,42,.9)}
+.day:hover::after{opacity:1}
+.day.today{border-color:#facc15;box-shadow:0 0 0 1px rgba(250,204,21,.9),0 0 18px rgba(250,204,21,.6)}
+.day-num{font-size:11px;font-weight:600}
+.dots{display:flex;gap:3px;margin-top:2px}
+.dot{width:7px;height:7px;border-radius:999px;box-shadow:0 0 10px rgba(15,23,42,1)}
+.dot.blue{background:#3b82f6;box-shadow:0 0 10px rgba(59,130,246,.9)}
+.dot.pink{background:#ec4899;box-shadow:0 0 10px rgba(236,72,153,.9)}
+.day-progress{margin-top:auto}
+.agenda-empty{font-size:11px;opacity:.6;padding:8px 4px}
+.checkbox{width:16px;height:16px;border-radius:6px;border:1px solid rgba(75,85,99,1);display:flex;align-items:center;justify-content:center;font-size:11px;background:rgba(15,23,42,1);box-shadow:0 0 0 1px rgba(15,23,42,1)}
+.checkbox.done{background:radial-gradient(circle at 30% 0,#22c55e,#4ade80);border-color:#22c55e;box-shadow:0 0 12px rgba(34,197,94,.9)}
+.checkbox span{transform:translateY(-1px)}
+.chip{font-size:10px;padding:3px 7px;border-radius:999px;background:rgba(15,23,42,1);border:1px solid rgba(55,65,81,1)}
+.chip.habit{border-color:rgba(129,140,248,.9);color:#c7d2fe}
+.chip.task{border-color:rgba(45,212,191,.9);color:#a7f3d0}
+.chip.event{border-color:rgba(59,130,246,.9);color:#bfdbfe}
+.chip.birthday{border-color:rgba(244,114,182,.9);color:#f9a8d4}
+.bar-row{display:flex;gap:2px;margin-top:8px;padding:0 2px}
+.bar-cell{flex:1;height:20px;display:flex;align-items:flex-end;justify-content:center}
+.bar{width:60%;border-radius:999px;transition:height .25s ease-out,background .25s}
+.bar.green{background:linear-gradient(180deg,#22c55e,#16a34a);box-shadow:0 0 10px rgba(34,197,94,.9)}
+.bar.orange{background:linear-gradient(180deg,#f97316,#facc15);box-shadow:0 0 10px rgba(249,115,22,.9)}
+.bar.gray{background:linear-gradient(180deg,#4b5563,#9ca3af)}
+.controls{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:11px}
+.controls-left{display:flex;gap:4px;align-items:center}
+.controls-right{opacity:.7}
+input,select{background:rgba(15,23,42,1);border-radius:999px;border:1px solid rgba(75,85,99,1);color:#e5e7eb;font-size:11px;padding:4px 8px;outline:none}
+input:focus,select:focus{border-color:#6366f1;box-shadow:0 0 0 1px rgba(129,140,248,.7)}
+#timerOverlay{position:fixed;inset:0;background:radial-gradient(circle at top,#020617,#020617 40%,#000 100%);display:none;align-items:center;justify-content:center;z-index:50}
+.timer-box{border-radius:26px;padding:26px 26px 24px;background:radial-gradient(circle at top,rgba(15,23,42,.98),rgba(15,23,42,.96));border:1px solid rgba(148,163,184,.4);box-shadow:0 26px 60px rgba(0,0,0,.9);display:flex;flex-direction:column;gap:14px;align-items:center;min-width:260px}
+.timer-label{font-size:13px;opacity:.8;letter-spacing:.12em;text-transform:uppercase}
+.timer-time{font-size:46px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.08em}
+.timer-name{font-size:14px;opacity:.9;display:flex;align-items:center;gap:6px}
+.timer-name span{font-size:18px}
+.timer-actions{display:flex;gap:8px;margin-top:4px}
+@media(max-width:960px){#app{margin:8px;padding:10px}.layout{grid-template-columns:1fr}.list{max-height:260px}}
+.light body{background:radial-gradient(circle at top,#e5e7eb,#cbd5f5 40%,#94a3b8 100%);color:#020617}
+.light #app{background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(248,250,252,.96));border-color:rgba(148,163,184,.4);box-shadow:0 24px 60px rgba(15,23,42,.25)}
+.light .col{background:radial-gradient(circle at top left,rgba(191,219,254,.7),rgba(248,250,252,.98));border-color:rgba(148,163,184,.5);box-shadow:0 14px 30px rgba(148,163,184,.5)}
+.light .card{background:linear-gradient(135deg,#f9fafb,#e5e7eb);border-color:rgba(148,163,184,.8);box-shadow:0 10px 22px rgba(148,163,184,.6)}
+.light .card:hover{border-color:#4f46e5;box-shadow:0 16px 32px rgba(129,140,248,.7)}
+.light .day{background:radial-gradient(circle at top,#f9fafb,#e5e7eb);border-color:rgba(209,213,219,1)}
+.light .checkbox{background:#f9fafb;border-color:#9ca3af}
+.light button{background:#e5e7eb;color:#020617}
+.light button.ghost{background:transparent;border-color:rgba(148,163,184,.8)}
+.light button.primary{background:linear-gradient(135deg,#4f46e5,#6366f1);color:#e5e7eb}
+.light .badge{background:#e5e7eb;border-color:rgba(148,163,184,.9)}
+.light .progress-shell{background:#e5e7eb}
+.light .bar.gray{background:linear-gradient(180deg,#9ca3af,#d1d5db)}
+.light .top-metrics span{background:#e5e7eb;border-color:rgba(148,163,184,.9)}
+.light input,.light select{background:#f9fafb;border-color:#cbd5f5;color:#020617}
+.light #timerOverlay{background:radial-gradient(circle at top,#e5e7eb,#cbd5f5 40%,#94a3b8 100%)}
+.light .timer-box{background:linear-gradient(135deg,#f9fafb,#e5e7eb);border-color:#cbd5f5}
+</style></head>
+<body><div id="app"></div><div id="timerOverlay"><div class="timer-box"><div class="timer-label">Focus Session</div><div class="timer-time" id="timerTime"></div><div class="timer-name" id="timerLabel"></div><div class="timer-actions"><button id="timerCancel" class="ghost">Cancel</button></div></div></div>
+<script>
+const LS_KEY="habit_os_v1";
+const todayStr=()=>new Date().toISOString().slice(0,10);
+const clone=o=>JSON.parse(JSON.stringify(o));
+const load=()=>{try{return JSON.parse(localStorage.getItem(LS_KEY))||null}catch{return null}};
+const emptyStore=()=>({habits:[],completions:{},settings:{theme:"dark",vacationMode:false},view:{selectedDate:todayStr(),monthOffset:0,manualSort:false}});
+let store=load()||emptyStore();
+const save=()=>localStorage.setItem(LS_KEY,JSON.stringify(store));
+const setTheme=()=>{document.documentElement.className=store.settings.theme==="light"?"light":""};
+setTheme();
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const dateObj=s=>new Date(s+"T00:00:00");
+const fmtMonthYear=d=>d.toLocaleDateString(undefined,{month:"long",year:"numeric"});
+const ymd=d=>d.toISOString().slice(0,10);
+const addCompletion=(date,id)=>{const c=store.completions[date]||[];if(!c.includes(id))c.push(id);store.completions[date]=c};
+const removeCompletion=(date,id)=>{const c=store.completions[date]||[];store.completions[date]=c.filter(x=>x!==id);if(!store.completions[date].length)delete store.completions[date]};
+const isDue=(h,date)=>{const d=dateObj(date);const dow=d.getDay();if(h.type==="habit"){const freq=h.frequency&&h.frequency.length?h.frequency:[0,1,2,3,4,5,6];return !h.archived&&freq.includes(dow)}if(h.type==="task"){return !h.archived&&h.targetDate===date}if(h.type==="event"){return !h.archived&&h.targetDate===date}if(h.type==="birthday"){if(!h.targetDate)return false;const td=dateObj(h.targetDate);return !h.archived&&td.getDate()===d.getDate()&&td.getMonth()===d.getMonth()}return false};
+const dueHabitsTasks=date=>store.habits.filter(h=>["habit","task"].includes(h.type)&&isDue(h,date));
+const dayCompletionStats=date=>{const due=dueHabitsTasks(date);const doneIds=new Set(store.completions[date]||[]);let total=due.length,done=0;due.forEach(h=>{if(doneIds.has(h.id))done++});return{total,done,ratio:total?done/total:0}};
+const last30Stats=()=>{const arr=[];const base=dateObj(todayStr());for(let i=29;i>=0;i--){const d=new Date(base);d.setDate(d.getDate()-i);const ds=ymd(d);arr.push({date:ds,...dayCompletionStats(ds)});}return arr};
+const monthDays=offset=>{const base=new Date();base.setDate(1);base.setMonth(base.getMonth()+offset);const year=base.getFullYear(),month=base.getMonth();const first=new Date(year,month,1);const startDow=first.getDay();const daysIn=new Date(year,month+1,0).getDate();const cells=[];for(let i=0;i<startDow;i++)cells.push(null);for(let d=1;d<=daysIn;d++)cells.push(new Date(year,month,d));return{cells,monthDate:first}};
+const streakForHabit=h=>{let streak=0;let d=dateObj(todayStr());for(let i=0;i<365;i++){const ds=ymd(d);if(isDue(h,ds)){const done=(store.completions[ds]||[]).includes(h.id);if(done)streak++;else if(!store.settings.vacationMode)break}else if(!store.settings.vacationMode)break;d.setDate(d.getDate()-1);}return streak};
+const monthlyCount=h=>{if(!h.monthlyGoal)return 0;const now=dateObj(todayStr());const y=now.getFullYear(),m=now.getMonth();let count=0;Object.entries(store.completions).forEach(([date,ids])=>{const d=dateObj(date);if(d.getFullYear()===y&&d.getMonth()===m&&ids.includes(h.id))count++;});return count};
+const openHabitEditor=h=>{const base=h?clone(h):{id:uid(),name:"",type:"habit",icon:"✅",targetDate:todayStr(),frequency:[1,2,3,4,5],monthlyGoal:null,useTimer:false,archived:false,order:store.habits.length};const name=prompt("Name",base.name);if(name===null)return;base.name=name.trim()||"Untitled";const type=prompt("Type: habit/task/event/birthday",base.type)||base.type;base.type=["habit","task","event","birthday"].includes(type)?type:"habit";const icon=prompt("Emoji icon",base.icon)||base.icon;base.icon=icon;if(["task","event","birthday"].includes(base.type)){const td=prompt("Date (YYYY-MM-DD)",base.targetDate)||base.targetDate;base.targetDate=td;}else{const freqStr=prompt("Frequency days (0-6 comma, blank=daily)",base.frequency?base.frequency.join(","):"");base.frequency=freqStr?freqStr.split(",").map(x=>parseInt(x.trim())).filter(x=>x>=0&&x<=6):[0,1,2,3,4,5,6];}
+const goalStr=prompt("Monthly goal (blank=none)",base.monthlyGoal??"");base.monthlyGoal=goalStr?parseInt(goalStr)||null:null;const timer=confirm("Use focus timer? OK=yes, Cancel=no");base.useTimer=timer;if(h){const idx=store.habits.findIndex(x=>x.id===h.id);store.habits[idx]=base;}else{store.habits.push(base);}store.habits.forEach((hh,i)=>hh.order=i);save();render();}
+const archiveHabit=h=>{if(confirm("Archive this item?")){h.archived=true;save();render();}}
+let timerId=null,timerRemaining=0,timerHabitId=null,timerDate=null;
+const startTimer=(habitId,date)=>{const h=store.habits.find(x=>x.id===habitId);timerHabitId=habitId;timerDate=date;timerRemaining=25*60;document.getElementById("timerOverlay").style.display="flex";document.getElementById("timerLabel").innerHTML=`<span>${h?.icon||"⏱"}</span>${h?.name||"Focus"}`;updateTimerDisplay();if(timerId)clearInterval(timerId);timerId=setInterval(()=>{timerRemaining--;if(timerRemaining<=0){clearInterval(timerId);timerId=null;addCompletion(timerDate,timerHabitId);save();render();beep();closeTimer();}else updateTimerDisplay();},1000);}
+const updateTimerDisplay=()=>{const m=Math.floor(timerRemaining/60).toString().padStart(2,"0");const s=(timerRemaining%60).toString().padStart(2,"0");document.getElementById("timerTime").textContent=`${m}:${s}`;}
+const closeTimer=()=>{document.getElementById("timerOverlay").style.display="none";if(timerId){clearInterval(timerId);timerId=null;}}
+document.getElementById("timerCancel").onclick=closeTimer;
+const beep=()=>{try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator();const g=ctx.createGain();o.type="sine";o.frequency.value=880;o.connect(g);g.connect(ctx.destination);o.start();g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.4);setTimeout(()=>ctx.close(),500);}catch(e){alert("Done!");}}
+const exportJson=()=>{const blob=new Blob([JSON.stringify(store)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="habit_os_backup.json";a.click();URL.revokeObjectURL(a.href);}
+const importJson=()=>{const inp=document.createElement("input");inp.type="file";inp.accept=".json";inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const data=JSON.parse(ev.target.result);store=data;save();setTheme();render();}catch{alert("Invalid file");}};r.readAsText(f);};inp.click();}
+const toggleTheme=()=>{store.settings.theme=store.settings.theme==="dark"?"light":"dark";save();setTheme();render();}
+const toggleVacation=()=>{store.settings.vacationMode=!store.settings.vacationMode;save();render();}
+const toggleManualSort=()=>{store.view.manualSort=!store.view.manualSort;save();render();}
+const moveHabit=(id,dir)=>{const idx=store.habits.findIndex(h=>h.id===id);if(idx<0)return;const j=idx+dir;if(j<0||j>=store.habits.length)return;const tmp=store.habits[idx];store.habits[idx]=store.habits[j];store.habits[j]=tmp;store.habits.forEach((h,i)=>h.order=i);save();render();}
+const render=()=>{const app=document.getElementById("app");const selDate=store.view.selectedDate;const stats=dayCompletionStats(selDate);const ratio=Math.round(stats.ratio*100);const last30=last30Stats();const month=monthDays(store.view.monthOffset);const days=month.cells;const monthLabel=fmtMonthYear(month.monthDate);const week=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];const sidebarHabits=store.habits.filter(h=>!h.archived).slice().sort((a,b)=>store.view.manualSort?(a.order||0)-(b.order||0):a.name.localeCompare(b.name));const agendaItems=store.habits.filter(h=>isDue(h,selDate)&&!h.archived).slice().sort((a,b)=>store.view.manualSort?(a.order||0)-(b.order||0):a.name.localeCompare(b.name));
+const barHtml=last30.map(d=>{const pct=d.ratio*100;let cls="gray";if(pct===100)cls="green";else if(pct>50)cls="orange";return `<div class="bar-cell"><div title="${d.date} ${Math.round(pct)}%" class="bar ${cls}" style="height:${8+10*(pct/100)}px"></div></div>`}).join("");
+const calHead=week.map(w=>`<div class="day-head">${w}</div>`).join("");
+const calCells=days.map(d=>{if(!d)return`<div></div>`;const ds=ymd(d);const isToday=ds===todayStr();const dots=[];store.habits.forEach(h=>{if(h.type==="event"&&isDue(h,ds))dots.push(`<div class="dot blue"></div>`);if(h.type==="birthday"&&isDue(h,ds))dots.push(`<div class="dot pink"></div>`);});const st=dayCompletionStats(ds);const pct=Math.round(st.ratio*100);let cls="gray";if(pct===100)cls="";else if(pct>50)cls="orange";const bar=st.total?`<div class="progress-shell day-progress"><div class="progress-bar ${cls}" style="width:${pct}%"></div></div>`:"";return `<div class="day ${isToday?"today":""}" data-date="${ds}"><div class="day-num">${d.getDate()}</div><div class="dots">${dots.join("")}</div>${bar}</div>`;}).join("");
+const sidebarHtml=sidebarHabits.map(h=>{const doneCount=monthlyCount(h);const streak=streakForHabit(h);const pct=h.monthlyGoal?Math.min(100,Math.round((doneCount/(h.monthlyGoal||1))*100)):0;let bar="",meta="";if(h.monthlyGoal){let cls="gray";if(pct===100)cls="";else if(pct>50)cls="orange";bar=`<div class="progress-shell"><div class="progress-bar ${cls}" style="width:${pct}%"></div></div>`;meta=`${doneCount}/${h.monthlyGoal} this month`;}else{meta=`Streak: ${streak} days`;}const hero=h.monthlyGoal&&h.monthlyGoal>=20;return `<div class="card" data-habit="${h.id}"><div class="card-main"><div class="icon ${hero?"hero":""}">${h.icon||"•"}</div><div><div>${h.name} <span class="badge ${h.type}">${h.type}</span></div><div class="meta">${meta}</div>${bar}</div></div><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end"><button class="ghost" data-edit="${h.id}">Edit</button>${store.view.manualSort?`<div style="display:flex;flex-direction:column;gap:2px"><button class="ghost" data-up="${h.id}">↑</button><button class="ghost" data-down="${h.id}">↓</button></div>`:""}</div></div>`;}).join("")||`<div class="agenda-empty">No items yet. Add one to begin.</div>`;
+const agendaHtml=agendaItems.map(h=>{const done=(store.completions[selDate]||[]).includes(h.id);return `<div class="card" data-toggle="${h.id}"><div class="card-main"><div class="checkbox ${done?"done":""}">${done?"<span>✓</span>":""}</div><div><div>${h.name}</div><div class="meta">${h.type==="task"?"Task":"Routine"}${h.type==="event"?" · Event":""}${h.type==="birthday"?" · Birthday":""}</div></div></div><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">${h.useTimer&&["habit","task"].includes(h.type)?`<button class="ghost" data-timer="${h.id}">▶ Focus</button>`:""}<span class="chip ${h.type}">${h.type}</span></div></div>`;}).join("")||`<div class="agenda-empty">Nothing due on this day.</div>`;
+app.innerHTML=`
+<header>
+  <div>
+    <h1><span></span>Habit OS Stable Pro</h1>
+    <small>${selDate}</small>
+  </div>
+  <div class="top-metrics">
+    <span><span class="pill-dot"></span>Today ${ratio}% · ${stats.done}/${stats.total}</span>
+    <span>Vacation: ${store.settings.vacationMode?"On":"Off"}</span>
+    <span>Theme: ${store.settings.theme==="light"?"Light":"Dark"}</span>
+    <button class="primary" id="addHabit">+ New Item</button>
+    <button class="ghost" id="toggleSort">${store.view.manualSort?"Manual sort":"Auto sort"}</button>
+    <button class="ghost" id="themeBtn">Theme</button>
+    <button class="ghost" id="vacBtn">Vacation</button>
+    <button class="ghost" id="exportBtn">Export</button>
+    <button class="ghost" id="importBtn">Import</button>
+  </div>
+</header>
+<div class="layout">
+  <div class="col"><div class="col-inner">
+    <h2>Registry<span class="sub">Habits · Tasks · Events</span></h2>
+    <div class="list">${sidebarHtml}</div>
+  </div></div>
+  <div class="col"><div class="col-inner">
+    <h2>Calendar<span class="sub">${monthLabel}</span></h2>
+    <div class="controls">
+      <div class="controls-left">
+        <button class="ghost" id="prevMonth">◀</button>
+        <button class="ghost" id="todayBtn">Today</button>
+        <button class="ghost" id="nextMonth">▶</button>
+      </div>
+      <div class="controls-right">Smart Metrics · Last 30 days</div>
+    </div>
+    <div class="calendar">${calHead}${calCells}</div>
+    <div class="bar-row">${barHtml}</div>
+  </div></div>
+  <div class="col"><div class="col-inner">
+    <h2>Agenda<span class="sub">Due on ${selDate}</span></h2>
+    <div class="list">${agendaHtml}</div>
+  </div></div>
+</div>`;
+document.getElementById("addHabit").onclick=()=>openHabitEditor();
+document.getElementById("themeBtn").onclick=toggleTheme;
+document.getElementById("vacBtn").onclick=toggleVacation;
+document.getElementById("exportBtn").onclick=exportJson;
+document.getElementById("importBtn").onclick=importJson;
+document.getElementById("toggleSort").onclick=toggleManualSort;
+document.getElementById("prevMonth").onclick=()=>{store.view.monthOffset--;save();render();};
+document.getElementById("nextMonth").onclick=()=>{store.view.monthOffset++;save();render();};
+document.getElementById("todayBtn").onclick=()=>{store.view.selectedDate=todayStr();store.view.monthOffset=0;save();render();};
+app.querySelectorAll(".day").forEach(el=>{el.onclick=()=>{const d=el.getAttribute("data-date");store.view.selectedDate=d;save();render();};});
+app.querySelectorAll("[data-edit]").forEach(el=>{el.onclick=e=>{e.stopPropagation();const id=el.getAttribute("data-edit");const h=store.habits.find(x=>x.id===id);if(!h)return;const action=prompt("Edit or archive? (e/a)","e");if(action==="a")archiveHabit(h);else openHabitEditor(h);};});
+app.querySelectorAll("[data-up]").forEach(el=>{el.onclick=e=>{e.stopPropagation();moveHabit(el.getAttribute("data-up"),-1);};});
+app.querySelectorAll("[data-down]").forEach(el=>{el.onclick=e=>{e.stopPropagation();moveHabit(el.getAttribute("data-down"),1);};});
+app.querySelectorAll("[data-toggle]").forEach(el=>{el.onclick=()=>{const id=el.getAttribute("data-toggle");const date=selDate;const done=(store.completions[date]||[]).includes(id);if(done)removeCompletion(date,id);else addCompletion(date,id);save();render();};});
+app.querySelectorAll("[data-timer]").forEach(el=>{el.onclick=e=>{e.stopPropagation();startTimer(el.getAttribute("data-timer"),selDate);};});
+};
+if(!store.habits.length){store.habits.push({id:uid(),name:"Daily Planning",type:"habit",icon:"🧠",targetDate:todayStr(),frequency:[1,2,3,4,5],monthlyGoal:20,useTimer:true,archived:false,order:0});save();}
+render();
+</script></body></html>
