@@ -3,70 +3,80 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Habit OS — Stable Full</title>
-
+<title>Habit OS — Friendly Planner</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-
 <style>
   :root{
-    --bg:#f3f5f8;
-    --muted:#6b7280;
-    --glass: rgba(255,255,255,0.78);
-    --glass-2: rgba(255,255,255,0.9);
-    --accent: #6b46ff;
+    --bg-1: #f6f7fb;
+    --bg-2: #eef1fb;
+    --muted: #6b7280;
+    --card: rgba(255,255,255,0.86);
+    --glass-2: rgba(255,255,255,0.94);
+    --accent-1: #6b46ff;
     --accent-2: #7c3aed;
-    --card-shadow: 0 10px 30px rgba(16,24,40,0.06);
-    --lift-shadow: 0 6px 18px rgba(79,70,229,0.08);
+    --success: #10b981;
+    --danger: #ef4444;
     --radius: 14px;
+    --shadow-soft: 0 10px 30px rgba(16,24,40,0.06);
+    --shadow-lift: 0 8px 24px rgba(79,70,229,0.08);
   }
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0;background:linear-gradient(180deg,#f7f8fb 0%,var(--bg) 100%);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;color:#0f172a;-webkit-font-smoothing:antialiased}
-  /* App container fills viewport and uses full height */
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;color:#0f172a;-webkit-font-smoothing:antialiased}
+  /* App layout */
   #app{min-height:100vh;padding:28px;display:flex;gap:24px;align-items:stretch}
-  /* Panels */
-  .panel{background:var(--glass);border:1px solid rgba(15,23,42,0.06);border-radius:var(--radius);box-shadow:var(--card-shadow);padding:18px;display:flex;flex-direction:column;gap:12px;min-height:0}
-  .sidebar{width:280px;flex-shrink:0}
-  .rightbar{width:340px;flex-shrink:0}
-  /* CENTER: must grow and allow children to scroll */
-  .center{flex:1;display:flex;flex-direction:column;gap:14px;min-height:0}
-  /* Calendar panel should fill center vertically */
+  .panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow-soft);padding:18px;display:flex;flex-direction:column;gap:12px;min-height:0;border:1px solid rgba(15,23,42,0.04)}
+  .sidebar{width:300px;flex-shrink:0}
+  .rightbar{width:360px;flex-shrink:0}
+  .center{flex:1;display:flex;flex-direction:column;gap:16px;min-height:0}
   .panel.calendar{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
-  .cal-header{display:flex;align-items:center;justify-content:space-between}
-  .cal-grid-head{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
-  /* calendar grid area grows and scrolls if needed */
-  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;flex:1;min-height:0;overflow:auto;padding-bottom:6px}
-  .cal-day{padding:10px;border-radius:10px;text-align:center;font-size:13px;border:1px solid transparent;cursor:pointer;background:transparent}
-  .cal-day:hover{background:#fff}
-  .cal-day.selected{background:linear-gradient(180deg,#eef2ff,#f5f7ff);border:1px solid rgba(99,102,241,0.18);box-shadow:0 6px 18px rgba(99,102,241,0.06)}
-  .cal-weekday{font-size:11px;color:var(--muted);text-align:center}
-  .cal-dots{display:flex;gap:4px;justify-content:center;margin-top:6px}
-  .dot{width:6px;height:6px;border-radius:6px}
-  /* Heatmap sits below calendar and is visible; allow horizontal scroll */
-  .heat{display:flex;gap:6px;overflow-x:auto;padding:8px 4px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.6),rgba(255,255,255,0.5));align-items:center}
-  .heat .sq{width:14px;height:14px;border-radius:3px;flex:0 0 auto}
-  /* Sidebar cards */
-  .card{display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.82));border:1px solid rgba(15,23,42,0.04)}
-  .card .icon{width:44px;height:44px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:inset 0 -6px 12px rgba(0,0,0,0.02)}
-  .card .meta{flex:1}
-  .card .meta .title{font-weight:600;font-size:14px}
-  .card .meta .sub{font-size:12px;color:var(--muted);margin-top:4px}
-  .card .meta .progress{height:6px;background:#f1f5f9;border-radius:6px;margin-top:8px;overflow:hidden}
-  .card .meta .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
-  .card .actions{display:flex;flex-direction:column;gap:8px}
+  /* header */
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent-1),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700;box-shadow:var(--shadow-lift)}
+  .brand h1{margin:0;font-size:15px;letter-spacing:0.06em;text-transform:uppercase}
+  .muted{color:var(--muted);font-size:13px}
+  /* list cards */
+  .list{display:flex;flex-direction:column;gap:10px;overflow:auto;padding-right:6px;max-height:calc(100vh - 380px)}
+  .card{display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.96),rgba(255,255,255,0.92));border:1px solid rgba(15,23,42,0.04);transition:transform .14s,box-shadow .14s}
+  .card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lift)}
+  .icon{width:48px;height:48px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:inset 0 -6px 12px rgba(0,0,0,0.03)}
+  .meta{flex:1}
+  .title{font-weight:600;font-size:15px}
+  .sub{font-size:12px;color:var(--muted);margin-top:6px}
+  .progress{height:6px;background:#f1f5f9;border-radius:6px;margin-top:8px;overflow:hidden}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent-1),var(--accent-2))}
+  .actions{display:flex;flex-direction:column;gap:8px}
   .btn{padding:8px 12px;border-radius:10px;border:1px solid rgba(15,23,42,0.06);background:white;cursor:pointer;font-size:13px}
-  .btn.primary{padding:10px 14px;border-radius:12px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;border:none;box-shadow:var(--lift-shadow)}
-  .muted-sm{font-size:12px;color:var(--muted)}
+  .btn.primary{padding:10px 14px;border-radius:12px;background:linear-gradient(90deg,var(--accent-1),var(--accent-2));color:white;border:none;box-shadow:var(--shadow-lift)}
+  .small-muted{font-size:12px;color:var(--muted)}
+  /* calendar */
+  .cal-header{display:flex;align-items:center;justify-content:space-between}
+  .cal-controls{display:flex;gap:8px;align-items:center}
+  .cal-week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:6px}
+  .cal-day{padding:12px;border-radius:10px;text-align:center;font-size:14px;border:1px solid transparent;background:transparent;min-height:72px;display:flex;flex-direction:column;justify-content:space-between}
+  .cal-day:hover{background:#fff}
+  .cal-day.selected{background:linear-gradient(180deg,#eef2ff,#f5f7ff);border:1px solid rgba(99,102,241,0.18);box-shadow:0 8px 24px rgba(99,102,241,0.06)}
+  .weekday{font-size:12px;color:var(--muted);text-align:center}
+  .cal-dots{display:flex;gap:6px;justify-content:center;margin-top:8px}
+  .dot{width:8px;height:8px;border-radius:8px}
+  /* heatmap */
+  .heat{display:flex;gap:8px;overflow-x:auto;padding:10px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.6),rgba(255,255,255,0.5));align-items:center}
+  .heat .sq{width:16px;height:16px;border-radius:4px;flex:0 0 auto}
+  /* agenda */
+  .agenda{display:flex;flex-direction:column;gap:12px;overflow:auto;max-height:calc(100vh - 260px);padding-right:6px}
+  .agenda .card{justify-content:space-between}
   .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px;color:var(--muted)}
   .emoji{font-size:44px;margin-bottom:8px}
-  /* Modal */
+  /* modal */
   .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.28);display:flex;align-items:center;justify-content:center;z-index:60}
-  .modal{width:100%;max-width:760px;background:var(--glass-2);border-radius:14px;padding:18px;border:1px solid rgba(15,23,42,0.06);box-shadow:var(--card-shadow)}
-  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .field{display:flex;flex-direction:column;gap:6px}
-  .field input,.field select{padding:10px;border-radius:10px;border:1px solid rgba(15,23,42,0.06);background:white}
-  .freq{display:flex;gap:6px}
-  .freq button{width:36px;height:36px;border-radius:999px;border:1px solid rgba(15,23,42,0.06);background:white;cursor:pointer}
-  .freq button.active{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;border:none}
+  .modal{width:100%;max-width:820px;background:var(--glass-2);border-radius:14px;padding:20px;border:1px solid rgba(15,23,42,0.06);box-shadow:var(--shadow-soft)}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field{display:flex;flex-direction:column;gap:8px}
+  .field input,.field select{padding:12px;border-radius:10px;border:1px solid rgba(15,23,42,0.06);background:white;font-size:14px}
+  .freq{display:flex;gap:8px}
+  .freq button{width:40px;height:40px;border-radius:999px;border:1px solid rgba(15,23,42,0.06);background:white;cursor:pointer;font-weight:600}
+  .freq button.active{background:linear-gradient(90deg,var(--accent-1),var(--accent-2));color:white;border:none}
+  /* focus */
+  :focus{outline:3px solid rgba(99,102,241,0.12);outline-offset:2px;border-radius:10px}
   /* responsive */
   @media (max-width:1000px){
     .sidebar{display:none}
@@ -79,32 +89,31 @@
 </style>
 </head>
 <body>
-
 <div id="app">
   <!-- LEFT -->
   <aside class="panel sidebar">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <div style="display:flex;gap:10px;align-items:center">
-        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700">H</div>
+      <div class="brand">
+        <div class="logo">H</div>
         <div>
-          <div style="font-weight:600;font-size:14px">Habit OS</div>
-          <div class="muted-sm">Local Mode</div>
+          <h1>Habit OS</h1>
+          <div class="muted">Local Mode</div>
         </div>
       </div>
-      <div class="muted-sm">v1</div>
+      <div class="small-muted">v1</div>
     </div>
 
     <div>
-      <div class="muted-sm" style="margin-top:8px">Backup ID</div>
-      <div style="margin-top:8px;font-family:monospace;background:#fff;padding:8px;border-radius:10px;border:1px solid rgba(15,23,42,0.04)"><span id="backupId">user_xxx</span></div>
+      <div class="small-muted" style="margin-top:8px">Backup ID</div>
+      <div style="margin-top:8px;font-family:monospace;background:#fff;padding:10px;border-radius:10px;border:1px solid rgba(15,23,42,0.04)"><span id="backupId">user_xxx</span></div>
     </div>
 
-    <div style="margin-top:6px" class="muted-sm">All Items</div>
-    <div id="listContainer" style="display:flex;flex-direction:column;gap:10px;overflow:auto;padding-right:6px;max-height:calc(100vh - 360px)"></div>
+    <div style="margin-top:10px" class="small-muted">All Items</div>
+    <div id="listContainer" class="list"></div>
 
-    <div style="margin-top:auto;display:flex;gap:8px">
-      <button id="addItemBtn" class="btn primary" style="flex:1">+ New Item</button>
-      <button id="settingsBtn" class="btn">⚙</button>
+    <div style="margin-top:auto;display:flex;gap:10px">
+      <button id="addItemBtn" class="btn primary" style="flex:1" data-action="open-editor">+ New Item</button>
+      <button id="settingsBtn" class="btn" data-action="open-settings" title="Settings">⚙</button>
     </div>
   </aside>
 
@@ -112,21 +121,23 @@
   <main class="center">
     <div class="panel calendar">
       <div class="cal-header">
-        <div class="muted-sm" id="monthLabel">February 2026</div>
-        <div style="display:flex;gap:8px">
-          <button id="prevMonth" class="btn" data-action="prev-month">◀</button>
-          <button id="todayBtn" class="btn" data-action="today">Today</button>
-          <button id="nextMonth" class="btn" data-action="next-month">▶</button>
+        <div>
+          <div class="small-muted" id="monthLabel">February 2026</div>
+          <div style="font-size:18px;font-weight:600" id="monthTitle"></div>
+        </div>
+        <div class="cal-controls">
+          <button id="prevMonth" class="btn" data-action="prev-month" aria-label="Previous month">◀</button>
+          <button id="todayBtn" class="btn" data-action="today" aria-label="Today">Today</button>
+          <button id="nextMonth" class="btn" data-action="next-month" aria-label="Next month">▶</button>
         </div>
       </div>
 
-      <div id="calHead" class="cal-grid-head"></div>
+      <div id="calHead" class="cal-week"></div>
 
-      <!-- calendar grid grows to fill center -->
       <div id="calGrid" class="cal-grid" aria-label="Calendar grid"></div>
 
-      <!-- heatmap sits below and is visible across full center width -->
-      <div class="heat" id="heatmap" aria-label="Consistency heatmap"></div>
+      <div class="small-muted">Consistency</div>
+      <div id="heatmap" class="heat" aria-label="Consistency heatmap"></div>
     </div>
   </main>
 
@@ -134,13 +145,13 @@
   <aside class="panel rightbar">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
-        <div style="font-weight:600" id="selectedDate">2026-02-07</div>
-        <div class="muted-sm">Your day</div>
+        <div style="font-weight:700" id="selectedDate">2026-02-07</div>
+        <div class="small-muted">Your day</div>
       </div>
-      <div class="muted-sm">•</div>
+      <div class="small-muted">•</div>
     </div>
 
-    <div class="agenda-list" id="agendaList" style="overflow:auto;max-height:calc(100vh - 260px);padding-right:6px"></div>
+    <div id="agendaList" class="agenda"></div>
 
     <button id="addRightBtn" class="btn primary" data-action="open-editor-right">+ Add Item</button>
   </aside>
@@ -148,9 +159,9 @@
 
 <!-- Editor Modal -->
 <div id="editorModal" class="modal-backdrop" style="display:none">
-  <div class="modal fade">
+  <div class="modal fade" role="dialog" aria-modal="true">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-weight:600">New Item</div>
+      <div style="font-weight:700">New Item</div>
       <div style="display:flex;gap:8px">
         <button id="closeModal" class="btn">Close</button>
       </div>
@@ -159,11 +170,11 @@
     <form id="editorForm">
       <div class="form-grid">
         <div class="field">
-          <label class="muted-sm">Name</label>
+          <label class="small-muted">Name</label>
           <input id="f_name" required />
         </div>
         <div class="field">
-          <label class="muted-sm">Type</label>
+          <label class="small-muted">Type</label>
           <select id="f_type">
             <option value="habit">Routine</option>
             <option value="task">Task</option>
@@ -173,31 +184,31 @@
         </div>
 
         <div class="field">
-          <label class="muted-sm">Category</label>
+          <label class="small-muted">Category</label>
           <select id="f_category">
             <option>General</option><option>Health</option><option>Work</option><option>Social</option><option>Learning</option>
           </select>
         </div>
 
         <div class="field">
-          <label class="muted-sm">Difficulty</label>
+          <label class="small-muted">Difficulty</label>
           <select id="f_difficulty">
             <option>Easy</option><option>Medium</option><option>Heroic</option>
           </select>
         </div>
 
         <div class="field">
-          <label class="muted-sm">Monthly goal (optional)</label>
+          <label class="small-muted">Monthly goal (optional)</label>
           <input id="f_goal" type="number" min="1" placeholder="e.g., 15" />
         </div>
 
         <div class="field">
-          <label class="muted-sm">Time (optional)</label>
+          <label class="small-muted">Time (optional)</label>
           <input id="f_time" type="time" />
         </div>
 
         <div style="grid-column:1/3">
-          <label class="muted-sm">Frequency (for routines)</label>
+          <label class="small-muted">Frequency (for routines)</label>
           <div class="freq" id="freqBtns" style="margin-top:8px">
             <button type="button" data-day="0">S</button>
             <button type="button" data-day="1">M</button>
@@ -210,22 +221,22 @@
         </div>
 
         <div class="field">
-          <label class="muted-sm">Date (for task/event/birthday)</label>
+          <label class="small-muted">Date (for task/event/birthday)</label>
           <input id="f_date" type="date" />
         </div>
 
         <div class="field">
-          <label class="muted-sm">Use focus timer</label>
+          <label class="small-muted">Use focus timer</label>
           <div style="margin-top:8px">
             <label style="display:flex;align-items:center;gap:8px">
               <input id="f_timer" type="checkbox" />
-              <span class="muted-sm">Enable</span>
+              <span class="small-muted">Enable</span>
             </label>
           </div>
         </div>
       </div>
 
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
         <button type="button" id="cancelForm" class="btn">Cancel</button>
         <button type="submit" class="btn primary">Save</button>
       </div>
@@ -236,9 +247,9 @@
 <!-- Timer overlay -->
 <div id="timerOverlay" class="modal-backdrop" style="display:none">
   <div class="modal" style="max-width:420px;text-align:center">
-    <div class="muted-sm">Focus Session</div>
+    <div class="small-muted">Focus Session</div>
     <div id="timerTime" style="font-size:36px;font-weight:700;margin:12px 0">25:00</div>
-    <div id="timerLabel" class="muted-sm" style="margin-bottom:12px"></div>
+    <div id="timerLabel" class="small-muted" style="margin-bottom:12px"></div>
     <div style="display:flex;justify-content:center;gap:8px">
       <button id="cancelTimer" class="btn">Cancel</button>
     </div>
@@ -246,33 +257,26 @@
 </div>
 
 <script>
-/* -------------------------
-   Data model + storage
-------------------------- */
-const LS_KEY = "habit_os_center_full_stable";
+/* Data + storage */
+const LS_KEY = "habit_os_friendly_v1";
 const todayStr = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const dateObj = s => new Date(s + "T00:00:00");
 const ymd = d => d.toISOString().slice(0,10);
-
-const emptyStore = () => ({
+const loadStore = () => JSON.parse(localStorage.getItem(LS_KEY) || "null") || {
   habits: [],
   completions: {},
   settings: { backupId: "user_" + Math.random().toString(36).slice(2,8), vacation:false },
   view: { selectedDate: todayStr(), monthOffset:0 }
-});
-let store = JSON.parse(localStorage.getItem(LS_KEY) || "null") || emptyStore();
+};
+let store = loadStore();
 const save = () => localStorage.setItem(LS_KEY, JSON.stringify(store));
 
-/* -------------------------
-   Utilities
-------------------------- */
+/* Helpers */
 const el = id => document.getElementById(id);
 const clamp = (v,min,max) => Math.max(min,Math.min(max,v));
 
-/* -------------------------
-   Calendar helpers
-------------------------- */
+/* Calendar helpers */
 function monthDays(offset){
   const base = new Date(); base.setDate(1); base.setMonth(base.getMonth()+offset);
   const year = base.getFullYear(), month = base.getMonth();
@@ -285,9 +289,7 @@ function monthDays(offset){
 }
 function fmtMonthYear(d){ return d.toLocaleDateString(undefined,{month:"long",year:"numeric"}); }
 
-/* -------------------------
-   Due + completion logic
-------------------------- */
+/* Due/completion */
 function isDue(h,date){
   const d = dateObj(date), dow = d.getDay();
   if(h.type==="habit"){
@@ -307,9 +309,7 @@ function dueItems(date){ return store.habits.filter(h=>isDue(h,date) && !h.archi
 function addCompletion(date,id){ const c = store.completions[date]||[]; if(!c.includes(id)) c.push(id); store.completions[date]=c; save(); }
 function removeCompletion(date,id){ const c = store.completions[date]||[]; store.completions[date]=c.filter(x=>x!==id); if(!store.completions[date].length) delete store.completions[date]; save(); }
 
-/* -------------------------
-   Streaks & monthly counts
-------------------------- */
+/* Streaks & monthly */
 function streakForHabit(h){
   let streak=0; let d = dateObj(todayStr());
   for(let i=0;i<365;i++){
@@ -333,9 +333,7 @@ function monthlyCount(h){
   return count;
 }
 
-/* -------------------------
-   Heatmap (last 30 days)
-------------------------- */
+/* Heatmap */
 function last30(){
   const arr=[]; const base = dateObj(todayStr());
   for(let i=29;i>=0;i--){
@@ -348,34 +346,30 @@ function last30(){
   return arr;
 }
 
-/* -------------------------
-   Render
-------------------------- */
+/* Render */
 function render(){
   el("backupId").textContent = store.settings.backupId;
   const sel = store.view.selectedDate;
   el("selectedDate").textContent = sel;
 
   // left list
-  const list = el("listContainer");
-  list.innerHTML = "";
+  const list = el("listContainer"); list.innerHTML = "";
   const items = store.habits.filter(h=>!h.archived).sort((a,b)=>a.name.localeCompare(b.name));
   items.forEach(h=>{
     const streak = streakForHabit(h);
     const monthly = monthlyCount(h);
     const pct = h.monthlyGoal ? clamp(Math.round((monthly/(h.monthlyGoal||1))*100),0,100) : 0;
-    const node = document.createElement("div");
-    node.className = "card fade";
+    const node = document.createElement("div"); node.className = "card fade";
     node.innerHTML = `
       <div class="icon">${h.icon||"•"}</div>
       <div class="meta">
         <div class="title">${h.name}</div>
         <div class="sub">${h.type} • ${h.category||"General"}</div>
-        <div class="progress" style="margin-top:8px"><i style="width:${pct}%"></i></div>
-        <div class="muted-sm" style="margin-top:6px">Streak ${streak} • ${monthly}${h.monthlyGoal?` / ${h.monthlyGoal}`:""}</div>
+        <div class="progress"><i style="width:${pct}%"></i></div>
+        <div class="small-muted" style="margin-top:8px">Streak ${streak} • ${monthly}${h.monthlyGoal?` / ${h.monthlyGoal}`:""}</div>
       </div>
       <div class="actions">
-        <button class="btn" data-edit="${h.id}">Edit</button>
+        <button class="btn" data-edit="${h.id}" aria-label="Edit ${h.name}">Edit</button>
       </div>
     `;
     list.appendChild(node);
@@ -384,8 +378,9 @@ function render(){
   // calendar
   const month = monthDays(store.view.monthOffset);
   el("monthLabel").textContent = fmtMonthYear(month.monthDate);
+  el("monthTitle").textContent = fmtMonthYear(month.monthDate);
   const week = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  el("calHead").innerHTML = week.map(w=>`<div class="cal-weekday">${w}</div>`).join("");
+  el("calHead").innerHTML = week.map(w=>`<div class="weekday">${w}</div>`).join("");
   el("calGrid").innerHTML = month.cells.map(d=>{
     if(!d) return `<div></div>`;
     const ds = ymd(d);
@@ -396,33 +391,31 @@ function render(){
       if(h.type==="birthday" && isDue(h,ds)) return `<div class="dot" style="background:#fb7185"></div>`;
       return "";
     }).filter(Boolean).slice(0,3).join("");
-    return `<button data-date="${ds}" class="${classes}"><div>${d.getDate()}</div><div class="cal-dots">${dots}</div></button>`;
+    return `<button data-date="${ds}" class="${classes}" aria-label="Select ${ds}"><div style="font-weight:600">${d.getDate()}</div><div class="cal-dots">${dots}</div></button>`;
   }).join("");
 
   // heatmap
   el("heatmap").innerHTML = last30().map(h=>{
     const pct = h.total ? h.done / h.total : 0;
     const color = pct===1 ? "#6b46ff" : pct>=0.5 ? "#a78bfa" : pct>0 ? "#c7b3ff" : "#e6e9ef";
-    return `<div class="sq" style="background:${color};width:14px;height:14px;border-radius:3px" title="${h.date}"></div>`;
+    return `<div class="sq" style="background:${color}" title="${h.date}"></div>`;
   }).join("");
 
   // agenda
-  const agenda = el("agendaList");
-  agenda.innerHTML = "";
+  const agenda = el("agendaList"); agenda.innerHTML = "";
   const due = dueItems(sel);
   if(due.length===0){
-    agenda.innerHTML = `<div class="empty"><div class="emoji">🎈</div><div class="muted-sm">Nothing scheduled</div></div>`;
+    agenda.innerHTML = `<div class="empty"><div class="emoji">🎈</div><div class="small-muted">Nothing scheduled</div></div>`;
   } else {
     due.forEach(h=>{
       const done = (store.completions[sel]||[]).includes(h.id);
-      const node = document.createElement("div");
-      node.className = "card fade";
+      const node = document.createElement("div"); node.className = "card fade";
       node.innerHTML = `
         <div style="display:flex;gap:12px;align-items:center">
           <div style="font-size:20px">${h.icon||"•"}</div>
           <div>
-            <div style="font-weight:600">${h.name}</div>
-            <div class="muted-sm">${h.type}${h.time?` • ${h.time}`:""}</div>
+            <div style="font-weight:700">${h.name}</div>
+            <div class="small-muted">${h.type}${h.time?` • ${h.time}`:""}</div>
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
@@ -435,146 +428,79 @@ function render(){
   }
 }
 
-/* -------------------------
-   Event delegation & stable bindings
-   - Attach a single delegated click handler to the app root
-   - Bind modal form and static controls once
-------------------------- */
-(function setupDelegation(){
-  const rootEl = document.getElementById("app");
-
-  rootEl.addEventListener("click", (ev) => {
-    const btn = ev.target.closest("[data-date], [data-edit], [data-toggle], [data-timer], [data-action]");
-    if (!btn) return;
-
-    // date buttons in calendar
-    if (btn.hasAttribute("data-date")) {
+/* Delegated events and stable bindings */
+(function setup(){
+  const root = document.getElementById("app");
+  root.addEventListener("click", (ev)=>{
+    const btn = ev.target.closest("[data-date],[data-edit],[data-toggle],[data-timer],[data-action]");
+    if(!btn) return;
+    if(btn.hasAttribute("data-date")){
       const d = btn.getAttribute("data-date");
-      if (d) {
-        store.view.selectedDate = d;
-        save();
-        render();
-      }
-      return;
+      store.view.selectedDate = d; save(); render(); return;
     }
-
-    // edit buttons in sidebar
-    if (btn.hasAttribute("data-edit")) {
-      const id = btn.getAttribute("data-edit");
-      const item = store.habits.find(x => x.id === id);
-      if (item) openEditor(item);
-      return;
+    if(btn.hasAttribute("data-edit")){
+      const id = btn.getAttribute("data-edit"); const item = store.habits.find(x=>x.id===id);
+      if(item) openEditor(item); return;
     }
-
-    // toggle completion in agenda
-    if (btn.hasAttribute("data-toggle")) {
-      const id = btn.getAttribute("data-toggle");
-      const date = store.view.selectedDate;
-      const done = (store.completions[date] || []).includes(id);
-      if (done) removeCompletion(date, id);
-      else addCompletion(date, id);
-      render();
-      return;
+    if(btn.hasAttribute("data-toggle")){
+      const id = btn.getAttribute("data-toggle"); const date = store.view.selectedDate;
+      const done = (store.completions[date]||[]).includes(id);
+      if(done) removeCompletion(date,id); else addCompletion(date,id); render(); return;
     }
-
-    // start timer
-    if (btn.hasAttribute("data-timer")) {
-      const id = btn.getAttribute("data-timer");
-      startTimer(id, store.view.selectedDate);
-      return;
+    if(btn.hasAttribute("data-timer")){
+      const id = btn.getAttribute("data-timer"); startTimer(id, store.view.selectedDate); return;
     }
-
-    // generic actions (prev/next/today/add/edit via data-action)
-    if (btn.hasAttribute("data-action")) {
+    if(btn.hasAttribute("data-action")){
       const action = btn.getAttribute("data-action");
-      switch (action) {
-        case "prev-month":
-          store.view.monthOffset--;
-          save();
-          render();
-          break;
-        case "next-month":
-          store.view.monthOffset++;
-          save();
-          render();
-          break;
-        case "today":
-          store.view.selectedDate = todayStr();
-          store.view.monthOffset = 0;
-          save();
-          render();
-          break;
-        case "open-editor":
-        case "open-editor-right":
-          openEditor();
-          break;
-        case "open-settings":
-          alert("Settings panel coming soon");
-          break;
-      }
+      if(action==="prev-month"){ store.view.monthOffset--; save(); render(); }
+      if(action==="next-month"){ store.view.monthOffset++; save(); render(); }
+      if(action==="today"){ store.view.selectedDate = todayStr(); store.view.monthOffset = 0; save(); render(); }
+      if(action==="open-editor"||action==="open-editor-right"){ openEditor(); }
+      if(action==="open-settings"){ alert("Settings coming soon"); }
       return;
     }
   });
 
-  // Modal open/close and form submit wiring (single-time bindings)
-  const modalEl = document.getElementById("editorModal");
-  const closeModalBtn = document.getElementById("closeModal");
-  const cancelFormBtn = document.getElementById("cancelForm");
-  if (closeModalBtn) closeModalBtn.onclick = () => { modalEl.style.display = "none"; modalEl.dataset.editId = ""; };
-  if (cancelFormBtn) cancelFormBtn.onclick = () => { modalEl.style.display = "none"; modalEl.dataset.editId = ""; };
+  // modal static bindings
+  const modal = document.getElementById("editorModal");
+  document.getElementById("closeModal").onclick = ()=>{ modal.style.display="none"; modal.dataset.editId=""; };
+  document.getElementById("cancelForm").onclick = ()=>{ modal.style.display="none"; modal.dataset.editId=""; };
+  document.querySelectorAll("#freqBtns button").forEach(b=>b.onclick = ()=>b.classList.toggle("active"));
 
-  // Frequency buttons inside modal: toggle active class (static binding)
-  document.querySelectorAll("#freqBtns button").forEach(b => {
-    b.onclick = () => b.classList.toggle("active");
-  });
+  // form submit
+  document.getElementById("editorForm").onsubmit = (e)=>{
+    e.preventDefault();
+    const modalEl = document.getElementById("editorModal");
+    const id = modalEl.dataset.editId || uid();
+    const name = document.getElementById("f_name").value.trim() || "Untitled";
+    const type = document.getElementById("f_type").value;
+    const category = document.getElementById("f_category").value;
+    const difficulty = document.getElementById("f_difficulty").value;
+    const monthlyGoal = document.getElementById("f_goal").value ? parseInt(document.getElementById("f_goal").value) : null;
+    const time = document.getElementById("f_time").value || "";
+    const targetDate = document.getElementById("f_date").value || todayStr();
+    const useTimer = document.getElementById("f_timer").checked;
+    const freq = Array.from(document.querySelectorAll("#freqBtns button")).filter(b=>b.classList.contains("active")).map(b=>parseInt(b.getAttribute("data-day")));
+    const item = { id, name, type, category, difficulty, monthlyGoal, time, targetDate, useTimer, frequency: freq.length?freq:[0,1,2,3,4,5,6], archived:false, order: store.habits.length, icon:"•" };
+    const existing = store.habits.find(x=>x.id===id);
+    if(existing){ const idx = store.habits.findIndex(x=>x.id===id); store.habits[idx] = item; } else store.habits.push(item);
+    if(item.type==="task"||item.type==="event"||item.type==="birthday"){
+      store.view.selectedDate = item.targetDate;
+      const t = dateObj(item.targetDate), now = new Date();
+      const monthDiff = (t.getFullYear()-now.getFullYear())*12 + (t.getMonth()-now.getMonth());
+      store.view.monthOffset = monthDiff;
+    }
+    save(); modalEl.style.display="none"; modalEl.dataset.editId=""; render();
+  };
 
-  // Form submit handler (single binding)
-  const editorForm = document.getElementById("editorForm");
-  if (editorForm) {
-    editorForm.onsubmit = (e) => {
-      e.preventDefault();
-      const modalEl = document.getElementById("editorModal");
-      const id = modalEl.dataset.editId || uid();
-      const name = document.getElementById("f_name").value.trim() || "Untitled";
-      const type = document.getElementById("f_type").value;
-      const category = document.getElementById("f_category").value;
-      const difficulty = document.getElementById("f_difficulty").value;
-      const monthlyGoal = document.getElementById("f_goal").value ? parseInt(document.getElementById("f_goal").value) : null;
-      const time = document.getElementById("f_time").value || "";
-      const targetDate = document.getElementById("f_date").value || todayStr();
-      const useTimer = document.getElementById("f_timer").checked;
-      const freq = Array.from(document.querySelectorAll("#freqBtns button")).filter(b => b.classList.contains("active")).map(b => parseInt(b.getAttribute("data-day")));
-      const item = { id, name, type, category, difficulty, monthlyGoal, time, targetDate, useTimer, frequency: freq.length ? freq : [0,1,2,3,4,5,6], archived:false, order: store.habits.length, icon: "•" };
-      const existing = store.habits.find(x => x.id === id);
-      if (existing) {
-        const idx = store.habits.findIndex(x => x.id === id);
-        store.habits[idx] = item;
-      } else {
-        store.habits.push(item);
-      }
-      if (item.type === "task" || item.type === "event" || item.type === "birthday") {
-        store.view.selectedDate = item.targetDate;
-        const t = dateObj(item.targetDate), now = new Date();
-        const monthDiff = (t.getFullYear()-now.getFullYear())*12 + (t.getMonth()-now.getMonth());
-        store.view.monthOffset = monthDiff;
-      }
-      save();
-      modalEl.style.display = "none";
-      modalEl.dataset.editId = "";
-      render();
-    };
-  }
-
-  // Static control attributes for add/settings buttons
-  const addLeft = document.getElementById("addItemBtn");
-  if (addLeft) addLeft.setAttribute("data-action", "open-editor");
-  const settingsBtn = document.getElementById("settingsBtn");
-  if (settingsBtn) settingsBtn.setAttribute("data-action", "open-settings");
+  // timer cancel
+  document.getElementById("cancelTimer").onclick = ()=>{
+    if(window._timerId){ clearInterval(window._timerId); window._timerId = null; }
+    document.getElementById("timerOverlay").style.display = "none";
+  };
 })();
 
-/* -------------------------
-   Editor helper
-------------------------- */
+/* Editor helper */
 function openEditor(h=null){
   const modal = document.getElementById("editorModal");
   const f = h ? h : { id: uid(), name:"", type:"habit", category:"General", difficulty:"Easy", monthlyGoal:null, time:"", frequency:[1,2,3,4,5], targetDate:todayStr(), useTimer:false, icon:"•" };
@@ -595,50 +521,31 @@ function openEditor(h=null){
   modal.dataset.editId = h ? h.id : "";
 }
 
-/* -------------------------
-   Timer
-------------------------- */
-let timerId=null, timerRemaining=0, timerHabitId=null, timerDate=null;
+/* Timer */
 function startTimer(id,date){
   const h = store.habits.find(x=>x.id===id); if(!h) return;
-  timerHabitId = id; timerDate = date; timerRemaining = 25*60;
+  window._timerId && clearInterval(window._timerId);
+  let remaining = 25*60;
   document.getElementById("timerLabel").textContent = h.name;
   document.getElementById("timerTime").textContent = "25:00";
   document.getElementById("timerOverlay").style.display = "flex";
-  if(timerId) clearInterval(timerId);
-  timerId = setInterval(()=>{
-    timerRemaining--;
-    const m = String(Math.floor(timerRemaining/60)).padStart(2,"0");
-    const s = String(timerRemaining%60).padStart(2,"0");
+  window._timerId = setInterval(()=>{
+    remaining--;
+    const m = String(Math.floor(remaining/60)).padStart(2,"0");
+    const s = String(remaining%60).padStart(2,"0");
     document.getElementById("timerTime").textContent = `${m}:${s}`;
-    if(timerRemaining<=0){
-      clearInterval(timerId); timerId=null;
-      addCompletion(timerDate,timerHabitId);
-      document.getElementById("timerOverlay").style.display="none";
-      render();
-    }
+    if(remaining<=0){ clearInterval(window._timerId); window._timerId = null; addCompletion(date,id); document.getElementById("timerOverlay").style.display = "none"; render(); }
   },1000);
 }
-document.getElementById("cancelTimer").onclick = ()=>{
-  if(timerId) clearInterval(timerId);
-  timerId=null;
-  document.getElementById("timerOverlay").style.display="none";
-};
 
-/* -------------------------
-   Controls (prev/next/today)
-------------------------- */
+/* Controls */
 document.getElementById("prevMonth").onclick = ()=>{ store.view.monthOffset--; save(); render(); };
 document.getElementById("nextMonth").onclick = ()=>{ store.view.monthOffset++; save(); render(); };
 document.getElementById("todayBtn").onclick = ()=>{ store.view.selectedDate = todayStr(); store.view.monthOffset = 0; save(); render(); };
 
-/* -------------------------
-   Seed and initial render
-------------------------- */
+/* Seed */
 if(!store.habits.length){
-  store.habits.push({
-    id: uid(), name: "Daily Planning", type: "habit", category:"Work", difficulty:"Easy", monthlyGoal:20, time:"", frequency:[1,2,3,4,5], useTimer:true, archived:false, order:0, icon:"🧠"
-  });
+  store.habits.push({ id: uid(), name: "Daily Planning", type: "habit", category:"Work", difficulty:"Easy", monthlyGoal:20, time:"", frequency:[1,2,3,4,5], useTimer:true, archived:false, order:0, icon:"🧠" });
   save();
 }
 render();
