@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Habit OS — Light Planner</title>
+  <title>Habit OS — Light Planner (Fixed)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -22,23 +22,29 @@
     };
   </script>
   <style>
-    body { background: #f5f6f8; color: #0f172a; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
-    .glass { background: rgba(255,255,255,0.72); backdrop-filter: blur(8px); }
+    :root { --app-bg: #f5f6f8; --card-bg: rgba(255,255,255,0.78); --muted: #6b7280; }
+    html,body { height:100%; }
+    body { margin:0; background:var(--app-bg); color:#0f172a; font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+    .glass { background: var(--card-bg); backdrop-filter: blur(8px); }
     .border-soft { border: 1px solid rgba(15,23,42,0.06); }
     .shadow-soft { box-shadow: 0 8px 30px rgba(16,24,40,0.06); }
-    /* small helper to keep heatmap squares consistent */
-    .heat-square { width: 12px; height: 12px; border-radius: 3px; }
+    .heat-square { width:12px; height:12px; border-radius:3px; flex:0 0 auto; }
+    /* Ensure the app fills the viewport and columns expand */
+    #app { min-height:100vh; display:flex; align-items:stretch; padding:28px; box-sizing:border-box; }
+    /* Make scrollbars subtle */
+    ::-webkit-scrollbar { height:8px; width:8px; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.08); border-radius:8px; }
   </style>
 </head>
 <body>
-  <div id="app" class="w-full max-w-[1600px] mx-auto px-6 py-6"></div>
+  <div id="app"></div>
 
   <!-- Timer overlay -->
   <div id="timerOverlay" class="fixed inset-0 hidden items-center justify-center bg-black/30 z-50">
     <div class="glass border-soft rounded-2xl shadow-soft px-8 py-6 flex flex-col items-center gap-4 max-w-sm w-full mx-4">
-      <div class="text-xs uppercase tracking-wide text-slate-500">Focus Session</div>
+      <div class="text-xs uppercase tracking-wide text-gray-500">Focus Session</div>
       <div id="timerTime" class="text-4xl font-semibold tabular-nums">25:00</div>
-      <div id="timerLabel" class="text-base text-slate-700"></div>
+      <div id="timerLabel" class="text-base text-gray-700"></div>
       <div class="w-full flex justify-center">
         <button id="timerCancel" class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 text-sm">Cancel</button>
       </div>
@@ -49,7 +55,7 @@
 /* -------------------------
    Storage + Utilities
    ------------------------- */
-const LS_KEY = "habit_os_v1_lightplanner";
+const LS_KEY = "habit_os_v1_lightplanner_fixed";
 const todayStr = () => new Date().toISOString().slice(0,10);
 const clone = o => JSON.parse(JSON.stringify(o));
 const load = () => { try { return JSON.parse(localStorage.getItem(LS_KEY)) || null; } catch { return null; } };
@@ -137,7 +143,7 @@ const monthDays = offset => {
 };
 
 /* -------------------------
-   Editor (simple prompt)
+   Editor (simple prompt) - improved integration
    ------------------------- */
 const openEditor = (h) => {
   const base = h ? clone(h) : {
@@ -183,6 +189,15 @@ const openEditor = (h) => {
     store.habits[idx] = base;
   } else {
     store.habits.push(base);
+  }
+  // If the new item is a task/event with a date, select that date so it appears in the day view
+  if (base.type === "task" || base.type === "event") {
+    store.view.selectedDate = base.targetDate;
+    // adjust month offset so calendar centers on that date
+    const target = dateObj(base.targetDate);
+    const now = new Date();
+    const monthDiff = (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth());
+    store.view.monthOffset = monthDiff;
   }
   store.habits.forEach((hh,i) => hh.order = i);
   save();
@@ -234,7 +249,7 @@ const closeTimer = () => {
 document.getElementById("timerCancel").onclick = closeTimer;
 
 /* -------------------------
-   Export / Import / Helpers
+   Export / Import
    ------------------------- */
 const exportJson = () => {
   const blob = new Blob([JSON.stringify(store)], { type: "application/json" });
@@ -269,25 +284,31 @@ const importJson = () => {
 };
 
 /* -------------------------
-   Render
+   Render (full-width + integrated cards)
    ------------------------- */
 const render = () => {
-  const app = document.getElementById("app");
+  const root = document.getElementById("app");
   const sel = store.view.selectedDate;
   const month = monthDays(store.view.monthOffset);
   const days = month.cells;
   const monthLabel = fmtMonthYear(month.monthDate);
   const items = dueItems(sel);
 
-  // Sidebar list
+  // Sidebar list: use card-like items (integrated)
   const sidebarList = store.habits
     .filter(h => !h.archived)
     .sort((a,b) => store.view.manualSort ? a.order - b.order : a.name.localeCompare(b.name))
     .map(h => `
-      <button class="w-full text-left px-3 py-2 rounded-xl hover:bg-gray-100 flex items-center gap-3" data-edit="${h.id}">
-        <div class="w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-lg">${h.icon}</div>
-        <div class="text-sm">${h.name}</div>
-      </button>
+      <div class="glass border-soft rounded-xl p-3 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-lg">${h.icon}</div>
+        <div class="flex-1">
+          <div class="text-sm font-medium">${h.name}</div>
+          <div class="text-xs text-gray-500 mt-0.5">${h.type}${h.monthlyGoal?` • ${h.monthlyGoal} / mo`:""}</div>
+        </div>
+        <div class="flex flex-col gap-2 items-end">
+          <button data-edit="${h.id}" class="text-xs px-2 py-1 rounded-md border border-gray-200 hover:bg-gray-100">Edit</button>
+        </div>
+      </div>
     `).join("");
 
   // Calendar header
@@ -300,7 +321,16 @@ const render = () => {
     const ds = ymd(d);
     const isSel = ds === sel;
     const classes = isSel ? "bg-indigo-50 border border-indigo-200" : "hover:bg-gray-100";
-    return `<button data-date="${ds}" class="rounded-xl px-2 py-2 text-sm text-center ${classes}">${d.getDate()}</button>`;
+    // small dot indicators for events/birthdays
+    const dots = store.habits.map(h => {
+      if (h.type === "event" && isDue(h, ds)) return `<span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>`;
+      if (h.type === "birthday" && isDue(h, ds)) return `<span class="w-1.5 h-1.5 rounded-full bg-pink-400"></span>`;
+      return "";
+    }).filter(Boolean).slice(0,3).join("");
+    return `<button data-date="${ds}" class="rounded-xl px-2 py-2 text-sm text-center ${classes} flex flex-col items-center gap-1">
+      <div class="text-sm font-medium">${d.getDate()}</div>
+      <div class="flex gap-1">${dots}</div>
+    </button>`;
   }).join("");
 
   // Heatmap (horizontal strip)
@@ -314,21 +344,21 @@ const render = () => {
     return `<div class="heat-square ${color}" title="${d.date}"></div>`;
   }).join("");
 
-  // Agenda / day view
+  // Agenda / day view (integrated cards)
   const agenda = items.length ? items.map(h => {
     const done = (store.completions[sel] || []).includes(h.id);
     return `
       <div class="glass border-soft rounded-xl px-4 py-3 shadow-soft flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="text-xl">${h.icon}</div>
+          <div class="text-2xl">${h.icon}</div>
           <div>
             <div class="text-sm font-medium">${h.name}</div>
-            <div class="text-xs text-gray-500">${h.type}</div>
+            <div class="text-xs text-gray-500 mt-0.5">${h.type}${h.targetDate?` • ${h.targetDate}`:""}</div>
           </div>
         </div>
         <div class="flex items-center gap-2">
           ${h.useTimer && ["habit","task"].includes(h.type) ? `<button data-timer="${h.id}" class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 text-xs">Start</button>` : ""}
-          <button data-toggle="${h.id}" class="px-2 py-1 rounded-md border border-gray-200 text-xs ${done ? "bg-emerald-50" : ""}">${done ? "Done" : "Mark"}</button>
+          <button data-toggle="${h.id}" class="px-3 py-1 rounded-md border border-gray-200 text-xs ${done ? "bg-emerald-50" : ""}">${done ? "Done" : "Mark"}</button>
         </div>
       </div>
     `;
@@ -339,28 +369,31 @@ const render = () => {
     </div>
   `;
 
-  // Build layout
-  app.innerHTML = `
-    <div class="grid grid-cols-1 md:[grid-template-columns:260px_1fr_320px] gap-6">
+  // Build layout: full-bleed three columns that fill the viewport
+  root.innerHTML = `
+    <div class="w-full flex gap-6" style="align-items:stretch;">
+      <!-- LEFT (260px) -->
+      <aside class="flex-shrink-0" style="width:260px;">
+        <div class="glass border-soft rounded-2xl shadow-soft p-4 flex flex-col gap-4 h-full">
+          <div>
+            <div class="text-lg font-semibold">Habit OS</div>
+            <div class="text-xs text-gray-500 mt-1">Local Mode</div>
+          </div>
 
-      <!-- LEFT -->
-      <aside class="glass border-soft rounded-2xl shadow-soft p-4 flex flex-col gap-4">
-        <div>
-          <div class="text-lg font-semibold">Habit OS</div>
-          <div class="text-xs text-gray-500 mt-1">Local Mode</div>
+          <div class="text-xs text-gray-500">Backup ID</div>
+          <div class="text-sm font-mono bg-white px-3 py-2 rounded-xl border border-gray-100">${store.settings.backupId}</div>
+
+          <div class="mt-3 text-xs text-gray-500">All Items</div>
+          <div class="flex flex-col gap-3 overflow-y-auto" style="max-height:calc(100vh - 320px); padding-right:6px;">
+            ${sidebarList}
+          </div>
+
+          <button id="addLeft" class="mt-auto px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500">+ Add Item</button>
         </div>
-
-        <div class="text-xs text-gray-500">Backup ID</div>
-        <div class="text-sm font-mono bg-white px-3 py-2 rounded-xl border border-gray-100">${store.settings.backupId}</div>
-
-        <div class="mt-3 text-xs text-gray-500">All Items</div>
-        <div class="flex flex-col gap-1 max-h-[420px] overflow-y-auto pr-1">${sidebarList}</div>
-
-        <button id="addLeft" class="mt-auto px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500">+ Add Item</button>
       </aside>
 
-      <!-- CENTER -->
-      <main class="flex flex-col gap-4">
+      <!-- CENTER (flex-1) -->
+      <main class="flex-1 flex flex-col gap-4">
         <div class="glass border-soft rounded-2xl shadow-soft p-4">
           <div class="flex items-center justify-between mb-3">
             <div class="text-sm font-medium">${monthLabel}</div>
@@ -381,18 +414,21 @@ const render = () => {
         </div>
       </main>
 
-      <!-- RIGHT -->
-      <aside class="glass border-soft rounded-2xl shadow-soft p-4 flex flex-col gap-4">
-        <div>
-          <div class="text-lg font-semibold">${sel}</div>
-          <div class="text-xs text-gray-500 mt-1">Your day</div>
+      <!-- RIGHT (320px) -->
+      <aside class="flex-shrink-0" style="width:320px;">
+        <div class="glass border-soft rounded-2xl shadow-soft p-4 flex flex-col gap-4 h-full">
+          <div>
+            <div class="text-lg font-semibold">${sel}</div>
+            <div class="text-xs text-gray-500 mt-1">Your day</div>
+          </div>
+
+          <div class="flex flex-col gap-3 overflow-y-auto" style="max-height:calc(100vh - 260px); padding-right:6px;">
+            ${agenda}
+          </div>
+
+          <button id="addRight" class="mt-auto px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500">+ Add Item</button>
         </div>
-
-        <div class="flex flex-col gap-3 max-h-[420px] overflow-y-auto pr-1">${agenda}</div>
-
-        <button id="addRight" class="mt-auto px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500">+ Add Item</button>
       </aside>
-
     </div>
 
     <div class="mt-4 flex items-center justify-between text-xs text-gray-500">
