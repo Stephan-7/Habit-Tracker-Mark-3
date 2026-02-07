@@ -3,9 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Habit OS — Polished Gemini Light</title>
+<title>Habit OS — Center Full</title>
 
-<!-- Minimal reset + font -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
 <style>
@@ -22,19 +21,30 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:linear-gradient(180deg,#f7f8fb 0%,var(--bg) 100%);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;color:#0f172a;-webkit-font-smoothing:antialiased}
-  /* App container fills viewport */
+  /* App container fills viewport and uses full height */
   #app{min-height:100vh;padding:28px;display:flex;gap:24px;align-items:stretch}
   /* Panels */
-  .panel{background:var(--glass);border:1px solid rgba(15,23,42,0.06);border-radius:var(--radius);box-shadow:var(--card-shadow);padding:18px;display:flex;flex-direction:column;gap:12px}
+  .panel{background:var(--glass);border:1px solid rgba(15,23,42,0.06);border-radius:var(--radius);box-shadow:var(--card-shadow);padding:18px;display:flex;flex-direction:column;gap:12px;min-height:0}
   .sidebar{width:280px;flex-shrink:0}
   .rightbar{width:340px;flex-shrink:0}
-  .center{flex:1;display:flex;flex-direction:column;gap:14px}
-  /* Header */
-  .brand{display:flex;align-items:center;gap:10px}
-  .brand .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:var(--lift-shadow);display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
-  .brand h1{margin:0;font-size:14px;letter-spacing:0.06em;text-transform:uppercase}
-  .muted{color:var(--muted);font-size:12px}
-  /* List cards */
+  /* CENTER: must grow and allow children to scroll */
+  .center{flex:1;display:flex;flex-direction:column;gap:14px;min-height:0}
+  /* Calendar panel should fill center vertically */
+  .panel.calendar{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
+  .cal-header{display:flex;align-items:center;justify-content:space-between}
+  .cal-grid-head{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  /* calendar grid area grows and scrolls if needed */
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;flex:1;min-height:0;overflow:auto;padding-bottom:6px}
+  .cal-day{padding:10px;border-radius:10px;text-align:center;font-size:13px;border:1px solid transparent;cursor:pointer;background:transparent}
+  .cal-day:hover{background:#fff}
+  .cal-day.selected{background:linear-gradient(180deg,#eef2ff,#f5f7ff);border:1px solid rgba(99,102,241,0.18);box-shadow:0 6px 18px rgba(99,102,241,0.06)}
+  .cal-weekday{font-size:11px;color:var(--muted);text-align:center}
+  .cal-dots{display:flex;gap:4px;justify-content:center;margin-top:6px}
+  .dot{width:6px;height:6px;border-radius:6px}
+  /* Heatmap sits below calendar and is visible; allow horizontal scroll */
+  .heat{display:flex;gap:6px;overflow-x:auto;padding:8px 4px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.6),rgba(255,255,255,0.5));align-items:center}
+  .heat .sq{width:14px;height:14px;border-radius:3px;flex:0 0 auto}
+  /* Sidebar cards */
   .card{display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.82));border:1px solid rgba(15,23,42,0.04)}
   .card .icon{width:44px;height:44px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:inset 0 -6px 12px rgba(0,0,0,0.02)}
   .card .meta{flex:1}
@@ -44,25 +54,10 @@
   .card .meta .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
   .card .actions{display:flex;flex-direction:column;gap:8px}
   .btn{padding:8px 12px;border-radius:10px;border:1px solid rgba(15,23,42,0.06);background:white;cursor:pointer;font-size:13px}
-  .btn.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;border:none;box-shadow:var(--lift-shadow)}
-  .btn.ghost{background:transparent}
-  /* Calendar */
-  .calendar{display:flex;flex-direction:column;gap:10px}
-  .cal-header{display:flex;align-items:center;justify-content:space-between}
-  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
-  .cal-day{padding:10px;border-radius:10px;text-align:center;font-size:13px;border:1px solid transparent;cursor:pointer}
-  .cal-day:hover{background:#fff}
-  .cal-day.selected{background:linear-gradient(180deg,#eef2ff,#f5f7ff);border:1px solid rgba(99,102,241,0.18);box-shadow:0 6px 18px rgba(99,102,241,0.06)}
-  .cal-weekday{font-size:11px;color:var(--muted);text-align:center}
-  .cal-dots{display:flex;gap:4px;justify-content:center;margin-top:6px}
-  .dot{width:6px;height:6px;border-radius:6px}
-  /* Heatmap */
-  .heat{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
-  .heat .sq{width:12px;height:12px;border-radius:3px;flex:0 0 auto}
-  /* Agenda */
-  .agenda-list{display:flex;flex-direction:column;gap:10px}
+  .btn.primary{padding:10px 14px;border-radius:12px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;border:none;box-shadow:var(--lift-shadow)}
+  .muted-sm{font-size:12px;color:var(--muted)}
   .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px;color:var(--muted)}
-  .empty .emoji{font-size:44px;margin-bottom:8px}
+  .emoji{font-size:44px;margin-bottom:8px}
   /* Modal */
   .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.28);display:flex;align-items:center;justify-content:center;z-index:60}
   .modal{width:100%;max-width:760px;background:var(--glass-2);border-radius:14px;padding:18px;border:1px solid rgba(15,23,42,0.06);box-shadow:var(--card-shadow)}
@@ -72,10 +67,6 @@
   .freq{display:flex;gap:6px}
   .freq button{width:36px;height:36px;border-radius:999px;border:1px solid rgba(15,23,42,0.06);background:white;cursor:pointer}
   .freq button.active{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;border:none}
-  /* small helpers */
-  .muted-sm{font-size:12px;color:var(--muted)}
-  .small{font-size:13px}
-  .top-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
   /* responsive */
   @media (max-width:1000px){
     .sidebar{display:none}
@@ -92,19 +83,19 @@
 <div id="app">
   <!-- LEFT -->
   <aside class="panel sidebar">
-    <div class="top-row">
-      <div class="brand">
-        <div class="logo">H</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;gap:10px;align-items:center">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;color:white;font-weight:700">H</div>
         <div>
-          <h1>Habit OS</h1>
-          <div class="muted">Local Mode</div>
+          <div style="font-weight:600;font-size:14px">Habit OS</div>
+          <div class="muted-sm">Local Mode</div>
         </div>
       </div>
       <div class="muted-sm">v1</div>
     </div>
 
     <div>
-      <div class="muted-sm">Backup ID</div>
+      <div class="muted-sm" style="margin-top:8px">Backup ID</div>
       <div style="margin-top:8px;font-family:monospace;background:#fff;padding:8px;border-radius:10px;border:1px solid rgba(15,23,42,0.04)"><span id="backupId">user_xxx</span></div>
     </div>
 
@@ -129,26 +120,24 @@
         </div>
       </div>
 
-      <div class="cal-grid" id="calHead"></div>
-      <div class="cal-grid" id="calGrid"></div>
-    </div>
+      <div id="calHead" class="cal-grid-head"></div>
 
-    <div class="panel">
-      <div class="muted-sm">Consistency</div>
-      <div class="heat" id="heatmap"></div>
+      <!-- calendar grid grows to fill center -->
+      <div id="calGrid" class="cal-grid" aria-label="Calendar grid"></div>
+
+      <!-- heatmap sits below and is visible across full center width -->
+      <div class="heat" id="heatmap" aria-label="Consistency heatmap"></div>
     </div>
   </main>
 
   <!-- RIGHT -->
   <aside class="panel rightbar">
-    <div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-weight:600" id="selectedDate">2026-02-07</div>
-          <div class="muted-sm">Your day</div>
-        </div>
-        <div class="muted-sm">•</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:600" id="selectedDate">2026-02-07</div>
+        <div class="muted-sm">Your day</div>
       </div>
+      <div class="muted-sm">•</div>
     </div>
 
     <div class="agenda-list" id="agendaList" style="overflow:auto;max-height:calc(100vh - 260px);padding-right:6px"></div>
@@ -260,7 +249,7 @@
 /* -------------------------
    Data model + storage
 ------------------------- */
-const LS_KEY = "habit_os_gemini_final";
+const LS_KEY = "habit_os_center_full";
 const todayStr = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const dateObj = s => new Date(s + "T00:00:00");
@@ -363,7 +352,6 @@ function last30(){
    Render
 ------------------------- */
 function render(){
-  // header values
   el("backupId").textContent = store.settings.backupId;
   const sel = store.view.selectedDate;
   el("selectedDate").textContent = sel;
@@ -403,7 +391,6 @@ function render(){
     const ds = ymd(d);
     const isSel = ds===sel;
     const classes = isSel ? "cal-day selected" : "cal-day";
-    // dots
     const dots = store.habits.map(h=>{
       if(h.type==="event" && isDue(h,ds)) return `<div class="dot" style="background:#60a5fa"></div>`;
       if(h.type==="birthday" && isDue(h,ds)) return `<div class="dot" style="background:#fb7185"></div>`;
@@ -416,7 +403,7 @@ function render(){
   el("heatmap").innerHTML = last30().map(h=>{
     const pct = h.total ? h.done / h.total : 0;
     const color = pct===1 ? "#6b46ff" : pct>=0.5 ? "#a78bfa" : pct>0 ? "#c7b3ff" : "#e6e9ef";
-    return `<div class="sq" style="background:${color};width:12px;height:12px;border-radius:3px" title="${h.date}"></div>`;
+    return `<div class="sq" style="background:${color};width:14px;height:14px;border-radius:3px" title="${h.date}"></div>`;
   }).join("");
 
   // agenda
@@ -467,7 +454,6 @@ const form = document.getElementById("editorForm");
 const freqBtns = document.querySelectorAll("#freqBtns button");
 
 function openEditor(h=null){
-  // populate
   const f = h ? h : { id: uid(), name:"", type:"habit", category:"General", difficulty:"Easy", monthlyGoal:null, time:"", frequency:[1,2,3,4,5], targetDate:todayStr(), useTimer:false, icon:"•" };
   document.getElementById("f_name").value = f.name || "";
   document.getElementById("f_type").value = f.type || "habit";
@@ -477,7 +463,6 @@ function openEditor(h=null){
   document.getElementById("f_time").value = f.time || "";
   document.getElementById("f_date").value = f.targetDate || "";
   document.getElementById("f_timer").checked = !!f.useTimer;
-  // freq
   freqBtns.forEach(btn=>{
     const day = parseInt(btn.getAttribute("data-day"));
     const active = (f.frequency || [0,1,2,3,4,5,6]).includes(day);
@@ -512,7 +497,6 @@ form.onsubmit = (e)=>{
   } else {
     store.habits.push(item);
   }
-  // if dated, select date and adjust month
   if(item.type==="task"||item.type==="event"||item.type==="birthday"){
     store.view.selectedDate = item.targetDate;
     const t = dateObj(item.targetDate), now = new Date();
