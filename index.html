@@ -476,7 +476,11 @@ const onDrop = (e, targetId) => {
             }
 
             // Long Press Logic Hook (Inline)
+           // Long Press Logic Hook (Inline)
             const handlePointerDown = (habit) => {
+                // FIX: Disable notes if we are in Sort/Drag mode
+                if (sortMode === 'manual') return;
+
                 window.longPressTimer = setTimeout(() => {
                     setDetailHabit(habit);
                     window.isLongPress = true;
