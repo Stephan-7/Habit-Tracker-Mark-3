@@ -352,98 +352,150 @@ function last30(){
    Render
 ------------------------- */
 function render(){
-  el("backupId").textContent = store.settings.backupId;
-  const sel = store.view.selectedDate;
-  el("selectedDate").textContent = sel;
+ /* -------------------------
+  Robust event delegation for all interactive controls
+  Paste this in place of the per-element binding block
+------------------------- */
+const rootEl = document.getElementById("app");
 
-  // left list
-  const list = el("listContainer");
-  list.innerHTML = "";
-  const items = store.habits.filter(h=>!h.archived).sort((a,b)=>a.name.localeCompare(b.name));
-  items.forEach(h=>{
-    const streak = streakForHabit(h);
-    const monthly = monthlyCount(h);
-    const pct = h.monthlyGoal ? clamp(Math.round((monthly/(h.monthlyGoal||1))*100),0,100) : 0;
-    const node = document.createElement("div");
-    node.className = "card fade";
-    node.innerHTML = `
-      <div class="icon">${h.icon||"•"}</div>
-      <div class="meta">
-        <div class="title">${h.name}</div>
-        <div class="sub">${h.type} • ${h.category||"General"}</div>
-        <div class="progress" style="margin-top:8px"><i style="width:${pct}%"></i></div>
-        <div class="muted-sm" style="margin-top:6px">Streak ${streak} • ${monthly}${h.monthlyGoal?` / ${h.monthlyGoal}`:""}</div>
-      </div>
-      <div class="actions">
-        <button class="btn" data-edit="${h.id}">Edit</button>
-      </div>
-    `;
-    list.appendChild(node);
-  });
+// Central click handler using delegation
+rootEl.addEventListener("click", (ev) => {
+  const btn = ev.target.closest("[data-date], [data-edit], [data-toggle], [data-timer], [data-action]");
+  if (!btn) return;
 
-  // calendar
-  const month = monthDays(store.view.monthOffset);
-  el("monthLabel").textContent = fmtMonthYear(month.monthDate);
-  const week = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  el("calHead").innerHTML = week.map(w=>`<div class="cal-weekday">${w}</div>`).join("");
-  el("calGrid").innerHTML = month.cells.map(d=>{
-    if(!d) return `<div></div>`;
-    const ds = ymd(d);
-    const isSel = ds===sel;
-    const classes = isSel ? "cal-day selected" : "cal-day";
-    const dots = store.habits.map(h=>{
-      if(h.type==="event" && isDue(h,ds)) return `<div class="dot" style="background:#60a5fa"></div>`;
-      if(h.type==="birthday" && isDue(h,ds)) return `<div class="dot" style="background:#fb7185"></div>`;
-      return "";
-    }).filter(Boolean).slice(0,3).join("");
-    return `<button data-date="${ds}" class="${classes}"><div>${d.getDate()}</div><div class="cal-dots">${dots}</div></button>`;
-  }).join("");
-
-  // heatmap
-  el("heatmap").innerHTML = last30().map(h=>{
-    const pct = h.total ? h.done / h.total : 0;
-    const color = pct===1 ? "#6b46ff" : pct>=0.5 ? "#a78bfa" : pct>0 ? "#c7b3ff" : "#e6e9ef";
-    return `<div class="sq" style="background:${color};width:14px;height:14px;border-radius:3px" title="${h.date}"></div>`;
-  }).join("");
-
-  // agenda
-  const agenda = el("agendaList");
-  agenda.innerHTML = "";
-  const due = dueItems(sel);
-  if(due.length===0){
-    agenda.innerHTML = `<div class="empty"><div class="emoji">🎈</div><div class="muted-sm">Nothing scheduled</div></div>`;
-  } else {
-    due.forEach(h=>{
-      const done = (store.completions[sel]||[]).includes(h.id);
-      const node = document.createElement("div");
-      node.className = "card fade";
-      node.innerHTML = `
-        <div style="display:flex;gap:12px;align-items:center">
-          <div style="font-size:20px">${h.icon||"•"}</div>
-          <div>
-            <div style="font-weight:600">${h.name}</div>
-            <div class="muted-sm">${h.type}${h.time?` • ${h.time}`:""}</div>
-          </div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
-          ${h.useTimer && (h.type==="habit"||h.type==="task") ? `<button class="btn" data-timer="${h.id}">Start</button>` : ""}
-          <button class="btn" data-toggle="${h.id}">${done ? "Done" : "Mark"}</button>
-        </div>
-      `;
-      agenda.appendChild(node);
-    });
+  // date buttons in calendar
+  if (btn.hasAttribute("data-date")) {
+    const d = btn.getAttribute("data-date");
+    if (d) {
+      store.view.selectedDate = d;
+      save();
+      render();
+    }
+    return;
   }
 
-  // bind events
-  document.querySelectorAll("[data-date]").forEach(b=>b.onclick=()=>{ store.view.selectedDate = b.getAttribute("data-date"); save(); render(); });
-  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{ const id=b.getAttribute("data-edit"); openEditor(store.habits.find(x=>x.id===id)); });
-  document.querySelectorAll("[data-toggle]").forEach(b=>b.onclick=()=>{
-    const id=b.getAttribute("data-toggle"); const date = store.view.selectedDate;
-    const done = (store.completions[date]||[]).includes(id);
-    if(done) removeCompletion(date,id); else addCompletion(date,id);
+  // edit buttons in sidebar
+  if (btn.hasAttribute("data-edit")) {
+    const id = btn.getAttribute("data-edit");
+    const item = store.habits.find(x => x.id === id);
+    if (item) openEditor(item);
+    return;
+  }
+
+  // toggle completion in agenda
+  if (btn.hasAttribute("data-toggle")) {
+    const id = btn.getAttribute("data-toggle");
+    const date = store.view.selectedDate;
+    const done = (store.completions[date] || []).includes(id);
+    if (done) removeCompletion(date, id);
+    else addCompletion(date, id);
     render();
-  });
-  document.querySelectorAll("[data-timer]").forEach(b=>b.onclick=()=>{ const id=b.getAttribute("data-timer"); startTimer(id, store.view.selectedDate); });
+    return;
+  }
+
+  // start timer
+  if (btn.hasAttribute("data-timer")) {
+    const id = btn.getAttribute("data-timer");
+    startTimer(id, store.view.selectedDate);
+    return;
+  }
+
+  // generic actions (prev/next/today/add/edit via data-action)
+  if (btn.hasAttribute("data-action")) {
+    const action = btn.getAttribute("data-action");
+    switch (action) {
+      case "prev-month":
+        store.view.monthOffset--;
+        save();
+        render();
+        break;
+      case "next-month":
+        store.view.monthOffset++;
+        save();
+        render();
+        break;
+      case "today":
+        store.view.selectedDate = todayStr();
+        store.view.monthOffset = 0;
+        save();
+        render();
+        break;
+      case "open-editor":
+        openEditor();
+        break;
+      case "open-editor-right":
+        openEditor();
+        break;
+      case "open-settings":
+        // keep simple for now
+        alert("Settings panel coming soon");
+        break;
+    }
+    return;
+  }
+});
+
+// Hook the static controls that exist outside the dynamic area
+// (these are safe to bind once)
+const prevBtn = document.getElementById("prevMonth");
+if (prevBtn) prevBtn.setAttribute("data-action", "prev-month");
+const nextBtn = document.getElementById("nextMonth");
+if (nextBtn) nextBtn.setAttribute("data-action", "next-month");
+const todayBtn = document.getElementById("todayBtn");
+if (todayBtn) todayBtn.setAttribute("data-action", "today");
+const addLeft = document.getElementById("addItemBtn");
+if (addLeft) addLeft.setAttribute("data-action", "open-editor");
+const addRight = document.getElementById("addRightBtn");
+if (addRight) addRight.setAttribute("data-action", "open-editor-right");
+const settingsBtn = document.getElementById("settingsBtn");
+if (settingsBtn) settingsBtn.setAttribute("data-action", "open-settings");
+
+// Modal open/close and form submit wiring (single-time bindings)
+const modalEl = document.getElementById("editorModal");
+const closeModalBtn = document.getElementById("closeModal");
+const cancelFormBtn = document.getElementById("cancelForm");
+if (closeModalBtn) closeModalBtn.onclick = () => { modalEl.style.display = "none"; };
+if (cancelFormBtn) cancelFormBtn.onclick = () => { modalEl.style.display = "none"; };
+
+// Ensure frequency buttons toggle class (they are static inside modal)
+document.querySelectorAll("#freqBtns button").forEach(b => {
+  b.onclick = () => b.classList.toggle("active");
+});
+
+// Form submit handler (single binding)
+const editorForm = document.getElementById("editorForm");
+if (editorForm) {
+  editorForm.onsubmit = (e) => {
+    e.preventDefault();
+    // reuse your existing form handling logic
+    const id = modalEl.dataset.editId || uid();
+    const name = document.getElementById("f_name").value.trim() || "Untitled";
+    const type = document.getElementById("f_type").value;
+    const category = document.getElementById("f_category").value;
+    const difficulty = document.getElementById("f_difficulty").value;
+    const monthlyGoal = document.getElementById("f_goal").value ? parseInt(document.getElementById("f_goal").value) : null;
+    const time = document.getElementById("f_time").value || "";
+    const targetDate = document.getElementById("f_date").value || todayStr();
+    const useTimer = document.getElementById("f_timer").checked;
+    const freq = Array.from(document.querySelectorAll("#freqBtns button")).filter(b => b.classList.contains("active")).map(b => parseInt(b.getAttribute("data-day")));
+    const item = { id, name, type, category, difficulty, monthlyGoal, time, targetDate, useTimer, frequency: freq.length ? freq : [0,1,2,3,4,5,6], archived:false, order: store.habits.length, icon: "•" };
+    const existing = store.habits.find(x => x.id === id);
+    if (existing) {
+      const idx = store.habits.findIndex(x => x.id === id);
+      store.habits[idx] = item;
+    } else {
+      store.habits.push(item);
+    }
+    if (item.type === "task" || item.type === "event" || item.type === "birthday") {
+      store.view.selectedDate = item.targetDate;
+      const t = dateObj(item.targetDate), now = new Date();
+      const monthDiff = (t.getFullYear()-now.getFullYear())*12 + (t.getMonth()-now.getMonth());
+      store.view.monthOffset = monthDiff;
+    }
+    save();
+    modalEl.style.display = "none";
+    render();
+  };
 }
 
 /* -------------------------
