@@ -16,7 +16,7 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <script>
         tailwind.config = {
@@ -53,7 +53,8 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrYW1jdGllZm5ieW5wZmtjcnR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0MDk3MzcsImV4cCI6MjA4NTk4NTczN30.wm3orZAzxyZQ-gKgPxiQ59xKQJMEmHSVOVdv4ojJyAE';
         // ----------------------------
 
-        // GLOBAL SUPABASE CLIENT (Initialized safely)
+        // GLOBAL SUPABASE CLIENT
+        // We initialize it inside the component to ensure library is loaded
         let supabase = null;
 
         // --- ICONS ---
@@ -122,7 +123,7 @@
             
             const handleLogin = async (e) => {
                 e.preventDefault();
-                if (!supabase) { alert("Supabase is not configured properly."); return; }
+                if (!supabase) { alert("Supabase is loading... try again in 1 second."); return; }
                 setLoading(true);
                 const { error } = await supabase.auth.signInWithOtp({ 
                     email, 
@@ -181,7 +182,8 @@
             );
         };
 
-        // --- SUB COMPONENTS ---
+        // --- SUB COMPONENTS (Heatmap, Charts, Timer) ---
+        // (Identical to previous, keeping structure simple)
         const YearHeatmap = ({ completions, habits }) => {
             const heatmapRef = useRef(null);
             useEffect(() => { if (heatmapRef.current) { const scrollRatio = new Date().getMonth() / 12; heatmapRef.current.scrollLeft = heatmapRef.current.scrollWidth * scrollRatio; } }, []);
@@ -275,10 +277,15 @@
             useEffect(() => {
                 const initSupabase = async () => {
                     try {
-                        // Check if user pasted keys
                         if (SUPABASE_URL.includes('PASTE') || SUPABASE_KEY.includes('PASTE')) {
                             throw new Error("Supabase Keys missing. Please edit the file and paste them.");
                         }
+                        
+                        // WAIT for Supabase library to load
+                        if (!window.supabase || !window.supabase.createClient) {
+                            throw new Error("Supabase library not loaded. Check your internet connection.");
+                        }
+
                         // Initialize Global Client
                         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
                         
@@ -301,7 +308,8 @@
                         setLoading(false);
                     }
                 };
-                initSupabase();
+                // Small delay to ensure script tag loads
+                setTimeout(initSupabase, 500);
             }, []);
 
             // 2. Load Data
