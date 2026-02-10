@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Habit OS - Clean</title>
+    <title>Habit OS - Productivity</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -63,6 +63,7 @@
         const ArrowUp = p => <Icon {...p}><path d="m18 15-6-6-6 6"/></Icon>;
         const ArrowDown = p => <Icon {...p}><path d="m6 9 6 6 6-6"/></Icon>;
         const FileText = p => <Icon {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></Icon>;
+        const Refresh = p => <Icon {...p}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></Icon>;
 
         // --- CONSTANTS ---
         const EMOJIS = ["📝", "💪", "💧", "📚", "🧘", "💰", "🎨", "🎵", "💻", "🍳", "🧹", "💊", "💤", "🎉", "🎂", "🐶", "🌳", "✈️"];
@@ -172,27 +173,55 @@
         };
 
         const FocusTimer = ({ habit, onClose, onComplete }) => {
+            const [duration, setDuration] = useState(25);
             const [timeLeft, setTimeLeft] = useState(25 * 60);
             const [isActive, setIsActive] = useState(false);
+            
             const formatTime = (s) => { const m = Math.floor(s / 60); const sc = s % 60; return `${m}:${sc < 10 ? '0' : ''}${sc}`; };
+            
+            const setTime = (min) => {
+                setDuration(min);
+                setTimeLeft(min * 60);
+                setIsActive(false);
+            };
+
             useEffect(() => {
                 let interval = null;
                 if (isActive && timeLeft > 0) interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
-                else if (timeLeft === 0) { setIsActive(false); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); }
+                else if (timeLeft === 0) { setIsActive(false); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); onComplete(); }
                 return () => clearInterval(interval);
             }, [isActive, timeLeft]);
+
             return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-dark-900 text-white animate-fade-in">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-dark-900/95 text-white animate-fade-in backdrop-blur-sm">
                     <button onClick={onClose} className="absolute top-6 right-6 p-2 text-gray-400 hover:text-white"><X size={32}/></button>
-                    <div className="flex flex-col items-center gap-8">
+                    <div className="flex flex-col items-center gap-8 w-full max-w-md p-4">
                         <div className="text-xl font-medium text-indigo-400 flex items-center gap-2">{habit.icon} {habit.name}</div>
+                        
+                        {/* TIMER DISPLAY */}
                         <div className="text-9xl font-bold font-mono tracking-tighter tabular-nums">{formatTime(timeLeft)}</div>
+                        
+                        {/* DURATION SELECTOR (Only when paused) */}
+                        {!isActive && (
+                            <div className="flex gap-3 mb-4">
+                                {[15, 25, 45, 60].map(m => (
+                                    <button 
+                                        key={m} 
+                                        onClick={() => setTime(m)}
+                                        className={`px-4 py-2 rounded-full font-bold text-sm transition-all ${duration === m ? 'bg-white text-dark-900' : 'bg-dark-800 text-gray-400 hover:text-white'}`}
+                                    >
+                                        {m}m
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
                         <div className="flex gap-6">
-                            <button onClick={() => setIsActive(!isActive)} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${isActive ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
+                            <button onClick={() => setIsActive(!isActive)} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-2xl ${isActive ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
                                 {isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1"/>}
                             </button>
                         </div>
-                        {timeLeft === 0 && <button onClick={onComplete} className="px-8 py-3 bg-white text-dark-900 font-bold rounded-full animate-bounce">Complete Task</button>}
+                        <p className="text-sm text-gray-500 mt-4 font-medium">{isActive ? 'Stay Focused.' : 'Select duration and start.'}</p>
                     </div>
                 </div>
             );
@@ -349,6 +378,8 @@
             const [selectedCategory, setSelectedCategory] = useState('All');
             const [activeFocusHabit, setActiveFocusHabit] = useState(null);
             const [centerView, setCenterView] = useState('calendar'); 
+            const [sortMode, setSortMode] = useState('time'); 
+            const [isReordering, setIsReordering] = useState(false);
 
             useEffect(() => { 
                 localStorage.setItem('habit_os_data', JSON.stringify(habits)); 
@@ -383,14 +414,10 @@
                 const current = completions[dateKey] || []; 
                 const newC = { ...completions, [dateKey]: current.includes(id) ? current.filter(x => x !== id) : [...current, id] }; 
                 updateData(habits, newC, dailyNotes); 
-                const dueToday = habits.filter(h => {
-                    if (h.isInbox) return false;
-                    if (h.type === 'task') return h.targetDate === dateKey;
-                    const freq = h.frequency || [0,1,2,3,4,5,6];
-                    return (h.type === 'habit' && freq.includes(new Date(dateKey).getDay()));
-                });
-                const doneCount = dueToday.filter(h => newC[dateKey]?.includes(h.id)).length;
-                if (doneCount === dueToday.length && dueToday.length > 0) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                
+                if (!current.includes(id)) {
+                    confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 }, colors: ['#6366f1', '#a855f7'] });
+                }
             };
 
             const toggleSubtask = (habitId, subIdx) => {
@@ -421,6 +448,20 @@
                 updateData(newHabits, completions, dailyNotes);
             };
 
+            // ROLLOVER LOGIC (Move Overdue to Today)
+            const rolloverOverdue = () => {
+                const todayStr = formatDateKey(new Date());
+                const newHabits = habits.map(h => {
+                    if (h.type === 'task' && !h.isInbox && h.targetDate < todayStr) {
+                        const isDone = completions[h.targetDate]?.includes(h.id);
+                        if (!isDone) return { ...h, targetDate: todayStr };
+                    }
+                    return h;
+                });
+                updateData(newHabits, completions, dailyNotes);
+                confetti({ particleCount: 80, spread: 100 });
+            };
+
             const year = currentDate.getFullYear(); const month = currentDate.getMonth();
             const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay();
             const selectedDateKey = formatDateKey(selectedDate); const todayKey = formatDateKey(new Date());
@@ -438,10 +479,22 @@
                 return (type === 'habit' && freq.includes(selectedDate.getDay()));
             });
 
-            // ALWAYS MANUAL SORT
-            todaysHabits.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            if (sortMode === 'time') {
+                todaysHabits.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+            } else {
+                todaysHabits.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            }
 
-            // Long Press Logic
+            // CHECK FOR OVERDUE TASKS
+            const overdueCount = useMemo(() => {
+                const todayStr = formatDateKey(new Date());
+                return habits.filter(h => {
+                    if (h.type !== 'task' || h.isInbox || h.targetDate >= todayStr) return false;
+                    const isDone = completions[h.targetDate]?.includes(h.id);
+                    return !isDone;
+                }).length;
+            }, [habits, completions]);
+
             const handlePointerDown = (habit) => {
                 window.longPressTimer = setTimeout(() => {
                     setDetailHabit(habit);
@@ -458,7 +511,7 @@
                     {/* LEFT SIDEBAR */}
                     <div className="w-80 bg-white dark:bg-dark-800 border-r border-gray-200 dark:border-dark-700 hidden md:flex flex-col z-20 shadow-lg">
                         <div className="p-6 border-b border-gray-100 dark:border-dark-700 flex items-center justify-between">
-                            <div className="flex items-center gap-3"><div className="bg-indigo-600 text-white p-2 rounded-lg"><Trophy size={20} /></div><div><h1 className="font-bold text-lg leading-tight dark:text-white">Habit OS</h1><p className="text-xs text-indigo-500 font-medium">Local Pro</p></div></div>
+                            <div className="flex items-center gap-3"><div className="bg-indigo-600 text-white p-2 rounded-lg"><Trophy size={20} /></div><div><h1 className="font-bold text-lg leading-tight dark:text-white">Habit OS</h1><p className="text-xs text-indigo-500 font-medium">Productivity Suite</p></div></div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
                             <div className="flex justify-between items-end mb-4 px-2"><h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Registry</h2><button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="text-indigo-600 hover:bg-indigo-50 dark:hover:bg-dark-700 p-1 rounded"><Plus size={18} /></button></div>
@@ -489,10 +542,12 @@
                                     <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-1 hover:bg-white dark:hover:bg-dark-700 rounded shadow-sm"><ChevronRight size={16}/></button>
                                 </div>
                             </div>
+                            
                             <div className="flex bg-gray-100 dark:bg-dark-800 rounded-lg p-1">
                                 <button onClick={() => setCenterView('calendar')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${centerView === 'calendar' ? 'bg-white dark:bg-dark-700 shadow text-indigo-600' : 'text-gray-400'}`}><CalendarIcon size={14} className="inline mr-1"/>Calendar</button>
                                 <button onClick={() => setCenterView('inbox')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${centerView === 'inbox' ? 'bg-white dark:bg-dark-700 shadow text-indigo-600' : 'text-gray-400'}`}><InboxIcon size={14} className="inline mr-1"/>Inbox ({habits.filter(h=>h.isInbox).length})</button>
                             </div>
+
                             <div className="flex items-center gap-3">
                                 <button onClick={() => setDarkMode(!darkMode)} className="p-2 text-gray-400 hover:text-indigo-500 transition-colors">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
                                 <button onClick={() => {const now=new Date(); setCurrentDate(now); setSelectedDate(now);}} className="text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full">Today</button>
@@ -582,9 +637,39 @@
                     {/* RIGHT SIDEBAR (Agenda) */}
                     <div className="w-full md:w-96 bg-gray-50 dark:bg-dark-800/50 border-t md:border-t-0 md:border-l border-gray-200 dark:border-dark-700 flex flex-col z-20 shadow-xl h-[50%] md:h-full order-2">
                         <div className="glass px-6 py-4 md:p-6 border-b border-gray-200/50 dark:border-dark-700 flex flex-col gap-3 sticky top-0 z-30">
+                            {/* OVERDUE ROLLOVER BUTTON */}
+                            {overdueCount > 0 && (
+                                <button onClick={rolloverOverdue} className="w-full mb-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 animate-pulse-slow">
+                                    <Refresh size={14}/> Move {overdueCount} Overdue Tasks to Today
+                                </button>
+                            )}
+
                             <div className="flex justify-between items-center">
                                 <div><h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}</h2><p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm">{selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p></div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => {
+                                            const nextMode = sortMode === 'time' ? 'manual' : 'time';
+                                            setSortMode(nextMode);
+                                            setIsReordering(nextMode === 'manual'); 
+                                        }} 
+                                        className={`p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold ${sortMode === 'manual' ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-200' : 'bg-white dark:bg-dark-700 text-gray-500'}`} 
+                                        title="Toggle Sort Mode"
+                                    >
+                                        {sortMode === 'time' ? <><Clock size={16}/> Auto</> : <><Sort size={16}/> Manual</>}
+                                    </button>
+
+                                    {/* HIDE ARROWS TOGGLE */}
+                                    {sortMode === 'manual' && (
+                                        <button 
+                                            onClick={() => setIsReordering(!isReordering)}
+                                            className={`p-2 rounded-lg transition-colors text-xs font-bold flex items-center gap-1 ${isReordering ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 ring-2 ring-green-500' : 'bg-white dark:bg-dark-700 text-gray-400'}`}
+                                            title={isReordering ? "Hide Arrows" : "Show Arrows"}
+                                        >
+                                            {isReordering ? <Check size={16}/> : <Edit2 size={16}/>}
+                                        </button>
+                                    )}
+
                                     <div className="md:hidden"><button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="bg-indigo-600 text-white p-2 rounded-lg shadow-sm"><Plus size={18} /></button></div>
                                 </div>
                             </div>
@@ -608,16 +693,20 @@
                                             className={`relative group flex flex-col p-3.5 rounded-2xl border transition-all duration-200 no-select ${isHeroic && !isDone ? 'border-yellow-400/50 bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-500/30' : type === 'birthday' ? 'border-pink-200 bg-pink-50 dark:bg-pink-900/10' : isDone ? 'bg-white/50 dark:bg-dark-700/50 border-transparent opacity-70' : 'bg-white dark:bg-dark-700 border-gray-100 dark:border-dark-600 shadow-sm'}`}
                                         >
                                             <div className="flex items-center cursor-pointer">
-                                                <div className="flex flex-col mr-2 gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100 opacity-100" onPointerDown={(e) => e.stopPropagation()}>
-                                                    <button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, -1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-indigo-600"><ArrowUp size={12}/></button>
-                                                    <button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, 1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-indigo-600"><ArrowDown size={12}/></button>
-                                                </div>
+                                                
+                                                {/* HOVER ARROWS: Visible if Reordering OR (Manual Mode + Hover) */}
+                                                {isReordering && (
+                                                    <div className="flex flex-col mr-2 gap-1 animate-fade-in" onPointerDown={(e) => e.stopPropagation()}>
+                                                        <button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, -1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-indigo-600"><ArrowUp size={12}/></button>
+                                                        <button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, 1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-indigo-600"><ArrowDown size={12}/></button>
+                                                    </div>
+                                                )}
                                                 
                                                 <div onClick={() => toggleHabit(h.id, selectedDateKey)} className={`w-6 h-6 rounded-lg mr-3 flex items-center justify-center transition-colors ${isDone ? 'bg-indigo-500 text-white' : (type === 'birthday' ? 'bg-pink-100 text-pink-500' : type === 'event' ? 'bg-blue-100 text-blue-500' : isHeroic ? 'bg-yellow-100 text-yellow-500' : 'bg-gray-100 dark:bg-dark-800 text-transparent')}`}>
                                                     {isHeroic && !isDone ? <Star size={14} fill="currentColor" /> : type === 'birthday' ? <Cake size={14} /> : type === 'event' ? <CalendarIcon size={14} /> : <Check size={14} strokeWidth={3} />}
                                                 </div>
                                                 
-                                                <div className="flex-1 min-w-0" onClick={() => { if(!window.isLongPress) toggleHabit(h.id, selectedDateKey); }}>
+                                                <div className="flex-1 min-w-0" onClick={() => { if(!window.isLongPress && !isReordering) toggleHabit(h.id, selectedDateKey); }}>
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-2"><span className="text-lg">{h.icon}</span><span className={`text-sm font-bold truncate ${isDone ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>{h.name}</span></div>
                                                         <div className="flex items-center gap-1">
