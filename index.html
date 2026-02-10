@@ -123,10 +123,15 @@
             const handleLogin = async (e) => {
                 e.preventDefault();
                 setLoading(true);
-                // Magic Link Login
-                const { error } = await supabase.auth.signInWithOtp({ email });
+                // FIX: Force Supabase to redirect back to the CURRENT page URL
+                const { error } = await supabase.auth.signInWithOtp({ 
+                    email,
+                    options: { 
+                        emailRedirectTo: window.location.href 
+                    }
+                });
                 if (error) alert(error.message);
-                else alert('Check your email for the login link!');
+                else alert('Check your email! (We sent a new link)');
                 setLoading(false);
             };
 
