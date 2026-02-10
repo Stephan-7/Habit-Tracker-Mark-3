@@ -50,17 +50,6 @@
         // ==========================================
 
         const { useState, useEffect, useMemo, useRef } = React;
-        
-        // --- SAFE INITIALIZATION ---
-        // This ensures the app loads even if Supabase fails
-        let supabase = null;
-        try {
-            if (window.supabase) {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            }
-        } catch(e) {
-            console.warn("Running in Offline Mode");
-        }
 
         // --- ICONS ---
         const Icon = ({ children, size=20, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>;
@@ -240,23 +229,47 @@
             const [selectedCategory, setSelectedCategory] = useState('All');
             const [activeFocusHabit, setActiveFocusHabit] = useState(null);
             const longPressTimer = useRef(null);
+            
+            // --- SYNC WITH SUPABASE ---
+            const [client, setClient] = useState(null);
 
             useEffect(() => { localStorage.setItem('habit_user_id', userId); }, [userId]);
             useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
             
-            // --- SYNC WITH SUPABASE ---
+            // 1. Initialize Supabase Client with Retry
+            useEffect(() => {
+                let attempts = 0;
+                const tryInit = () => {
+                    if (window.supabase) {
+                        try {
+                            // CHECK IF KEYS ARE PASTED
+                            if (SUPABASE_URL.includes('PASTE') || SUPABASE_KEY.includes('PASTE')) {
+                                console.warn("Supabase Keys missing.");
+                                return;
+                            }
+                            const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                            setClient(sb);
+                        } catch(e) { console.error("Init failed", e); }
+                    } else if (attempts < 10) {
+                        attempts++;
+                        setTimeout(tryInit, 500);
+                    }
+                };
+                tryInit();
+            }, []);
+
+            // 2. Fetch Data once Client is ready
             useEffect(() => {
                 const fetchData = async () => {
-                    if (!supabase) return;
+                    if (!client) return;
                     setStatus('syncing...');
                     try {
-                        const { data } = await supabase.from('user_data').select('*').eq('user_id', userId).single();
+                        const { data } = await client.from('user_data').select('*').eq('user_id', userId).single();
                         if (data) {
                             const h = data.habits || []; 
                             const c = data.completions || {};
                             const n = data.completions?._notes || {};
                             const v = data.completions?._vacationMode || false;
-                            
                             setHabits(h); setCompletions(c); setDailyNotes(n); setVacationMode(v);
                             localStorage.setItem('cached_habits', JSON.stringify(h));
                             localStorage.setItem('cached_completions', JSON.stringify(c));
@@ -269,13 +282,13 @@
                     } catch(e) { console.error(e); setStatus('error'); }
                 };
                 fetchData();
-            }, [userId]);
+            }, [client, userId]);
 
             const saveDataToSupabase = async (h, c, n, v) => {
-                if (!supabase) return;
+                if (!client) return;
                 setStatus('saving...');
                 const payloadCompletions = { ...c, _notes: n, _vacationMode: v };
-                const { error } = await supabase.from('user_data').upsert({ user_id: userId, habits: h, completions: payloadCompletions });
+                const { error } = await client.from('user_data').upsert({ user_id: userId, habits: h, completions: payloadCompletions });
                 if (error) { console.error(error); setStatus('error'); } else setStatus('saved');
             };
 
@@ -329,9 +342,10 @@
                     <div className="w-80 bg-white dark:bg-dark-800 border-r border-gray-200 dark:border-dark-700 hidden md:flex flex-col z-20">
                         <div className="p-6 border-b border-gray-100 dark:border-dark-700 flex items-center justify-between">
                             <div className="flex items-center gap-3"><div className="bg-indigo-600 text-white p-2 rounded-lg"><Trophy size={20} /></div><div><h1 className="font-bold text-lg leading-tight dark:text-white">Habit OS</h1><p className="text-xs text-indigo-500 font-medium">
-                                {status === 'saved' ? <span className="text-emerald-500 flex items-center gap-1"><Check size={10}/> Saved</span> : 
+                                {SUPABASE_URL.includes('PASTE') ? <span className="text-red-500 font-bold">KEYS MISSING!</span> : 
+                                 status === 'saved' ? <span className="text-emerald-500 flex items-center gap-1"><Check size={10}/> Saved</span> : 
                                  status === 'saving...' ? <span className="text-amber-500">Syncing...</span> : 
-                                 status === 'error' ? <span className="text-red-500">Cloud Error (Run SQL)</span> : 
+                                 status === 'error' ? <span className="text-red-500">Cloud Error</span> : 
                                  status === 'syncing...' ? <span className="text-blue-500">Loading...</span> :
                                  'Offline Mode'}
                             </p></div></div>
