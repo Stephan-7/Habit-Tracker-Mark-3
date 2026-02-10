@@ -439,14 +439,25 @@
 
         // --- MAIN APP ---
         const App = () => {
-            const [session, setSession] = useState(null);
-            const [habits, setHabits] = useState([]);
-            const [completions, setCompletions] = useState({});
-            const [dailyNotes, setDailyNotes] = useState({});
-            const [vacationMode, setVacationMode] = useState(false);
-            const [loading, setLoading] = useState(true);
+            // SAFE DATA LOADING UTILITY
+            const safeLoad = (key, fallback) => {
+                try {
+                    const item = localStorage.getItem(key);
+                    return item ? JSON.parse(item) : fallback;
+                } catch (e) {
+                    console.warn(`Corrupt data found in ${key}, resetting.`);
+                    return fallback;
+                }
+            };
+
+            // Initialize State with Safety Checks
+            const [habits, setHabits] = useState(() => safeLoad('habit_os_data', []));
+            const [completions, setCompletions] = useState(() => safeLoad('habit_os_comps', {}));
+            const [dailyNotes, setDailyNotes] = useState(() => safeLoad('habit_os_notes', {}));
+            const [vacationMode, setVacationMode] = useState(() => safeLoad('habit_os_vacation', false));
             
-            const [darkMode, setDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+            // UI State (No storage needed)
+            const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
             const [currentDate, setCurrentDate] = useState(new Date());
             const [selectedDate, setSelectedDate] = useState(new Date());
             const [isModalOpen, setIsModalOpen] = useState(false);
