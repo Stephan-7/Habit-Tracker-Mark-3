@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Habit OS</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
@@ -41,7 +43,7 @@
 
     <script type="text/babel">
         // ==========================================
-        // ⚠️ PASTE YOUR KEYS HERE
+        // ⚠️ PASTE YOUR KEYS HERE (KEEP THE QUOTES!)
         // ==========================================
         const SUPABASE_URL = 'https://skamctiefnbynpfkcrtt.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrYW1jdGllZm5ieW5wZmtjcnR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0MDk3MzcsImV4cCI6MjA4NTk4NTczN30.wm3orZAzxyZQ-gKgPxiQ59xKQJMEmHSVOVdv4ojJyAE'; 
@@ -49,9 +51,16 @@
 
         const { useState, useEffect, useMemo, useRef } = React;
         
-        // Initialize Supabase quietly.
+        // --- SAFE INITIALIZATION ---
+        // This ensures the app loads even if Supabase fails
         let supabase = null;
-        try { supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) { console.warn("Offline mode"); }
+        try {
+            if (window.supabase) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            }
+        } catch(e) {
+            console.warn("Running in Offline Mode");
+        }
 
         // --- ICONS ---
         const Icon = ({ children, size=20, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>;
@@ -212,14 +221,14 @@
         };
 
         const App = () => {
-            // --- LOAD INITIAL STATE FROM LOCAL STORAGE FIRST (Bulletproof Persistence) ---
             const [userId, setUserId] = useState(() => localStorage.getItem('habit_user_id') || `user_${Math.random().toString(36).substr(2, 9)}`);
+            // Initialize from Local Storage immediately
             const [habits, setHabits] = useState(() => JSON.parse(localStorage.getItem('cached_habits') || '[]'));
             const [completions, setCompletions] = useState(() => JSON.parse(localStorage.getItem('cached_completions') || '{}'));
             const [dailyNotes, setDailyNotes] = useState(() => JSON.parse(localStorage.getItem('cached_notes') || '{}'));
             const [vacationMode, setVacationMode] = useState(() => JSON.parse(localStorage.getItem('cached_vacation') || 'false'));
-            const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
             const [status, setStatus] = useState('offline');
+            const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
             const [currentDate, setCurrentDate] = useState(new Date());
             const [selectedDate, setSelectedDate] = useState(new Date());
             const [isModalOpen, setIsModalOpen] = useState(false);
@@ -239,28 +248,25 @@
             useEffect(() => {
                 const fetchData = async () => {
                     if (!supabase) return;
-                    setStatus('syncing');
-                    const { data, error } = await supabase.from('user_data').select('*').eq('user_id', userId).single();
-                    if (data) {
-                        // Found cloud data: merge/overwrite local
-                        const h = data.habits || []; 
-                        const c = data.completions || {};
-                        const n = data.completions?._notes || {};
-                        const v = data.completions?._vacationMode || false;
-                        
-                        setHabits(h); setCompletions(c); setDailyNotes(n); setVacationMode(v);
-                        
-                        // Update local cache to match cloud
-                        localStorage.setItem('cached_habits', JSON.stringify(h));
-                        localStorage.setItem('cached_completions', JSON.stringify(c));
-                        localStorage.setItem('cached_notes', JSON.stringify(n));
-                        localStorage.setItem('cached_vacation', JSON.stringify(v));
-                        
-                        setStatus('synced');
-                    } else { 
-                        // No cloud data yet, push what we have in local storage
-                        await saveDataToSupabase(habits, completions, dailyNotes, vacationMode); 
-                    }
+                    setStatus('syncing...');
+                    try {
+                        const { data } = await supabase.from('user_data').select('*').eq('user_id', userId).single();
+                        if (data) {
+                            const h = data.habits || []; 
+                            const c = data.completions || {};
+                            const n = data.completions?._notes || {};
+                            const v = data.completions?._vacationMode || false;
+                            
+                            setHabits(h); setCompletions(c); setDailyNotes(n); setVacationMode(v);
+                            localStorage.setItem('cached_habits', JSON.stringify(h));
+                            localStorage.setItem('cached_completions', JSON.stringify(c));
+                            localStorage.setItem('cached_notes', JSON.stringify(n));
+                            localStorage.setItem('cached_vacation', JSON.stringify(v));
+                            setStatus('saved');
+                        } else { 
+                            await saveDataToSupabase(habits, completions, dailyNotes, vacationMode); 
+                        }
+                    } catch(e) { console.error(e); setStatus('error'); }
                 };
                 fetchData();
             }, [userId]);
@@ -274,16 +280,10 @@
             };
 
             const updateData = (newHabits, newCompletions, newNotes) => {
-                // 1. Update React State (Instant UI)
                 setHabits(newHabits); setCompletions(newCompletions); setDailyNotes(newNotes);
-                
-                // 2. Update Local Storage (Instant Backup)
                 localStorage.setItem('cached_habits', JSON.stringify(newHabits));
                 localStorage.setItem('cached_completions', JSON.stringify(newCompletions));
                 localStorage.setItem('cached_notes', JSON.stringify(newNotes));
-                localStorage.setItem('cached_vacation', JSON.stringify(vacationMode));
-
-                // 3. Update Supabase (Async Cloud Sync)
                 saveDataToSupabase(newHabits, newCompletions, newNotes, vacationMode);
             };
 
@@ -332,6 +332,7 @@
                                 {status === 'saved' ? <span className="text-emerald-500 flex items-center gap-1"><Check size={10}/> Saved</span> : 
                                  status === 'saving...' ? <span className="text-amber-500">Syncing...</span> : 
                                  status === 'error' ? <span className="text-red-500">Cloud Error (Run SQL)</span> : 
+                                 status === 'syncing...' ? <span className="text-blue-500">Loading...</span> :
                                  'Offline Mode'}
                             </p></div></div>
                             <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-gray-400 hover:text-indigo-500"><Settings size={20}/></button>
