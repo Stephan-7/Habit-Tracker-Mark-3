@@ -49,7 +49,7 @@
 
         const { useState, useEffect, useMemo, useRef } = React;
         
-        // Initialize Supabase quietly. If it fails, the app still loads.
+        // Initialize Supabase quietly.
         let supabase = null;
         try { supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) { console.warn("Offline mode"); }
 
@@ -212,11 +212,12 @@
         };
 
         const App = () => {
+            // --- LOAD INITIAL STATE FROM LOCAL STORAGE FIRST (Bulletproof Persistence) ---
             const [userId, setUserId] = useState(() => localStorage.getItem('habit_user_id') || `user_${Math.random().toString(36).substr(2, 9)}`);
-            const [habits, setHabits] = useState([]);
-            const [completions, setCompletions] = useState({});
-            const [dailyNotes, setDailyNotes] = useState({});
-            const [vacationMode, setVacationMode] = useState(false);
+            const [habits, setHabits] = useState(() => JSON.parse(localStorage.getItem('cached_habits') || '[]'));
+            const [completions, setCompletions] = useState(() => JSON.parse(localStorage.getItem('cached_completions') || '{}'));
+            const [dailyNotes, setDailyNotes] = useState(() => JSON.parse(localStorage.getItem('cached_notes') || '{}'));
+            const [vacationMode, setVacationMode] = useState(() => JSON.parse(localStorage.getItem('cached_vacation') || 'false'));
             const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
             const [status, setStatus] = useState('offline');
             const [currentDate, setCurrentDate] = useState(new Date());
@@ -234,31 +235,55 @@
             useEffect(() => { localStorage.setItem('habit_user_id', userId); }, [userId]);
             useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
             
+            // --- SYNC WITH SUPABASE ---
             useEffect(() => {
                 const fetchData = async () => {
                     if (!supabase) return;
-                    setStatus('saving');
+                    setStatus('syncing');
                     const { data, error } = await supabase.from('user_data').select('*').eq('user_id', userId).single();
                     if (data) {
-                        setHabits(data.habits || []); setCompletions(data.completions || {});
-                        if(data.completions && data.completions._notes) setDailyNotes(data.completions._notes);
-                        setVacationMode(data.completions?._vacationMode || false);
-                        setStatus('saved');
-                    } else { await saveDataToSupabase(habits, completions, dailyNotes, vacationMode); }
+                        // Found cloud data: merge/overwrite local
+                        const h = data.habits || []; 
+                        const c = data.completions || {};
+                        const n = data.completions?._notes || {};
+                        const v = data.completions?._vacationMode || false;
+                        
+                        setHabits(h); setCompletions(c); setDailyNotes(n); setVacationMode(v);
+                        
+                        // Update local cache to match cloud
+                        localStorage.setItem('cached_habits', JSON.stringify(h));
+                        localStorage.setItem('cached_completions', JSON.stringify(c));
+                        localStorage.setItem('cached_notes', JSON.stringify(n));
+                        localStorage.setItem('cached_vacation', JSON.stringify(v));
+                        
+                        setStatus('synced');
+                    } else { 
+                        // No cloud data yet, push what we have in local storage
+                        await saveDataToSupabase(habits, completions, dailyNotes, vacationMode); 
+                    }
                 };
                 fetchData();
             }, [userId]);
 
             const saveDataToSupabase = async (h, c, n, v) => {
                 if (!supabase) return;
-                setStatus('saving');
+                setStatus('saving...');
                 const payloadCompletions = { ...c, _notes: n, _vacationMode: v };
                 const { error } = await supabase.from('user_data').upsert({ user_id: userId, habits: h, completions: payloadCompletions });
                 if (error) { console.error(error); setStatus('error'); } else setStatus('saved');
             };
 
             const updateData = (newHabits, newCompletions, newNotes) => {
+                // 1. Update React State (Instant UI)
                 setHabits(newHabits); setCompletions(newCompletions); setDailyNotes(newNotes);
+                
+                // 2. Update Local Storage (Instant Backup)
+                localStorage.setItem('cached_habits', JSON.stringify(newHabits));
+                localStorage.setItem('cached_completions', JSON.stringify(newCompletions));
+                localStorage.setItem('cached_notes', JSON.stringify(newNotes));
+                localStorage.setItem('cached_vacation', JSON.stringify(vacationMode));
+
+                // 3. Update Supabase (Async Cloud Sync)
                 saveDataToSupabase(newHabits, newCompletions, newNotes, vacationMode);
             };
 
@@ -303,7 +328,12 @@
                     {/* LEFT SIDEBAR */}
                     <div className="w-80 bg-white dark:bg-dark-800 border-r border-gray-200 dark:border-dark-700 hidden md:flex flex-col z-20">
                         <div className="p-6 border-b border-gray-100 dark:border-dark-700 flex items-center justify-between">
-                            <div className="flex items-center gap-3"><div className="bg-indigo-600 text-white p-2 rounded-lg"><Trophy size={20} /></div><div><h1 className="font-bold text-lg leading-tight dark:text-white">Habit OS</h1><p className="text-xs text-indigo-500 font-medium">{status === 'saving' ? 'Syncing...' : 'Cloud Active'}</p></div></div>
+                            <div className="flex items-center gap-3"><div className="bg-indigo-600 text-white p-2 rounded-lg"><Trophy size={20} /></div><div><h1 className="font-bold text-lg leading-tight dark:text-white">Habit OS</h1><p className="text-xs text-indigo-500 font-medium">
+                                {status === 'saved' ? <span className="text-emerald-500 flex items-center gap-1"><Check size={10}/> Saved</span> : 
+                                 status === 'saving...' ? <span className="text-amber-500">Syncing...</span> : 
+                                 status === 'error' ? <span className="text-red-500">Cloud Error (Run SQL)</span> : 
+                                 'Offline Mode'}
+                            </p></div></div>
                             <button onClick={() => setIsSettingsOpen(true)} className="p-2 text-gray-400 hover:text-indigo-500"><Settings size={20}/></button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
