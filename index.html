@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Habit OS - Final</title>
+    <title>Habit OS - Clean</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -101,14 +101,12 @@
         // --- CHART COMPONENTS ---
         const YearHeatmap = ({ completions, habits }) => {
             const heatmapRef = useRef(null);
-            
             useEffect(() => { 
                 if (heatmapRef.current) {
                     const scrollRatio = new Date().getMonth() / 12;
                     heatmapRef.current.scrollLeft = heatmapRef.current.scrollWidth * scrollRatio; 
                 }
             }, []);
-            
             const data = useMemo(() => {
                 const year = new Date().getFullYear();
                 const startOfYear = new Date(year, 0, 1);
@@ -116,7 +114,6 @@
                 const grid = [];
                 let currentWeek = [];
                 for (let i = 0; i < startOfYear.getDay(); i++) currentWeek.push({ isPadding: true, key: `pad-${i}` });
-
                 for (let d = new Date(startOfYear); d <= endOfYear; d.setDate(d.getDate() + 1)) {
                     const date = new Date(d);
                     const k = formatDateKey(date);
@@ -130,7 +127,6 @@
                 if (currentWeek.length > 0) grid.push(currentWeek);
                 return grid;
             }, [completions, habits]);
-
             return (
                 <div ref={heatmapRef} className="h-full w-full overflow-x-auto overflow-y-hidden pb-1 scrollbar-hide flex flex-col justify-center">
                     <div className="flex gap-[3px] min-w-max px-2">
@@ -159,7 +155,6 @@
                 }
                 return result;
             }, [completions, habits]);
-
             return (
                 <div className="h-full w-full overflow-x-auto pb-1 scrollbar-hide">
                     <div className="flex items-end h-full gap-2 min-w-max px-1">
@@ -269,7 +264,6 @@
                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Name</label>
                                 <input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-white" />
                             </div>
-                            
                             {(type === 'habit' || type === 'task') && (
                                 <div className="space-y-4">
                                     <div className="flex gap-3">
@@ -282,7 +276,6 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
                                     <div className="flex gap-3">
                                         <div onClick={() => setUseTimer(!useTimer)} className={`flex-1 flex items-center justify-center p-3 rounded-xl border cursor-pointer transition-colors ${useTimer ? 'bg-indigo-50 border-indigo-500 text-indigo-600' : 'bg-gray-50 border-gray-200 dark:bg-dark-900 dark:border-dark-700 text-gray-500'}`}>
                                             <div className="flex items-center gap-2"><Clock size={16} /><span className="text-xs font-bold">Timer</span></div>
@@ -290,7 +283,6 @@
                                     </div>
                                 </div>
                             )}
-
                             <div className="flex gap-3">
                                 <div className="flex-1"><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Time</label><input type="time" value={time} onChange={e => setTime(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none text-sm dark:text-white" /></div>
                                 {(type !== 'habit') && (
@@ -306,9 +298,7 @@
                                     </div>
                                 )}
                             </div>
-                            
                             {type === 'habit' && (<div><label className="block text-xs font-bold text-gray-400 uppercase mb-2">Frequency</label><div className="flex justify-between">{DAYS_OF_WEEK.map((d, i) => (<button key={i} type="button" onClick={() => toggleDay(i)} className={`w-8 h-8 rounded-full text-xs font-bold transition-all ${frequency.includes(i) ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-dark-700 text-gray-400'}`}>{d}</button>))}</div></div>)}
-                            
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Sub-tasks</label>
                                 <div className="space-y-2 max-h-32 overflow-y-auto">
@@ -321,7 +311,6 @@
                                     <button type="button" onClick={addSubtask} className="text-xs text-indigo-500 font-bold hover:underline">+ Add Step</button>
                                 </div>
                             </div>
-                            
                             <div><label className="block text-xs font-bold text-gray-400 uppercase mb-2">Icon</label><div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">{EMOJIS.map(e => <button key={e} type="button" onClick={() => setIcon(e)} className={`flex-shrink-0 w-10 h-10 flex items-center justify-center text-xl rounded-lg ${icon === e ? 'bg-indigo-100 dark:bg-dark-700 border-2 border-indigo-500' : 'bg-gray-50 dark:bg-dark-900 dark:text-white'}`}>{e}</button>)}</div></div>
                             <div className="flex gap-3 pt-2">{initialData && <button type="button" onClick={() => { onDelete(initialData.id); onClose(); }} className="flex-1 py-3 text-red-600 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm font-bold">Delete</button>}<button type="submit" className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md">Save</button></div>
                         </form>
@@ -348,7 +337,6 @@
         // --- MAIN APP ---
         const App = () => {
             const [habits, setHabits] = useState(() => JSON.parse(localStorage.getItem('habit_os_data') || '[]'));
-            const [isReordering, setIsReordering] = useState(false);
             const [completions, setCompletions] = useState(() => JSON.parse(localStorage.getItem('habit_os_comps') || '{}'));
             const [dailyNotes, setDailyNotes] = useState(() => JSON.parse(localStorage.getItem('habit_os_notes') || '{}'));
             const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
@@ -361,7 +349,6 @@
             const [selectedCategory, setSelectedCategory] = useState('All');
             const [activeFocusHabit, setActiveFocusHabit] = useState(null);
             const [centerView, setCenterView] = useState('calendar'); 
-            const [sortMode, setSortMode] = useState('time'); // 'time' | 'manual'
 
             useEffect(() => { 
                 localStorage.setItem('habit_os_data', JSON.stringify(habits)); 
@@ -385,7 +372,6 @@
                     subtasks: habit.subtasks || [],
                     order: habit.order ?? habits.length
                 };
-                
                 const newHabits = habit.id && habits.some(h => h.id === habit.id) ? habits.map(h => h.id === habit.id ? finalHabit : h) : [...habits, finalHabit];
                 updateData(newHabits, completions, dailyNotes);
             };
@@ -425,10 +411,7 @@
                 if (idx === -1) return;
                 const newIdx = idx + direction;
                 if (newIdx < 0 || newIdx >= sorted.length) return;
-
-                const itemA = sorted[idx];
-                const itemB = sorted[newIdx];
-                
+                const itemA = sorted[idx]; const itemB = sorted[newIdx];
                 const newHabits = habits.map(h => {
                     if (h.id === itemA.id) return { ...h, order: itemB.order ?? newIdx };
                     if (h.id === itemB.id) return { ...h, order: itemA.order ?? idx };
@@ -455,12 +438,8 @@
                 return (type === 'habit' && freq.includes(selectedDate.getDay()));
             });
 
-            // Sorting logic
-            if (sortMode === 'time') {
-                todaysHabits.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-            } else {
-                todaysHabits.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-            }
+            // ALWAYS MANUAL SORT
+            todaysHabits.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
             // Long Press Logic
             const handlePointerDown = (habit) => {
@@ -495,8 +474,6 @@
                                 ))}
                             </div>
                         </div>
-                        
-                        {/* ADD BUTTON NOW INSIDE SIDEBAR */}
                         <div className="p-4 border-t border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 mt-auto">
                             <button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg transition-transform hover:-translate-y-0.5">+ Add Item</button>
                         </div>
@@ -512,12 +489,10 @@
                                     <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-1 hover:bg-white dark:hover:bg-dark-700 rounded shadow-sm"><ChevronRight size={16}/></button>
                                 </div>
                             </div>
-                            
                             <div className="flex bg-gray-100 dark:bg-dark-800 rounded-lg p-1">
                                 <button onClick={() => setCenterView('calendar')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${centerView === 'calendar' ? 'bg-white dark:bg-dark-700 shadow text-indigo-600' : 'text-gray-400'}`}><CalendarIcon size={14} className="inline mr-1"/>Calendar</button>
                                 <button onClick={() => setCenterView('inbox')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${centerView === 'inbox' ? 'bg-white dark:bg-dark-700 shadow text-indigo-600' : 'text-gray-400'}`}><InboxIcon size={14} className="inline mr-1"/>Inbox ({habits.filter(h=>h.isInbox).length})</button>
                             </div>
-
                             <div className="flex items-center gap-3">
                                 <button onClick={() => setDarkMode(!darkMode)} className="p-2 text-gray-400 hover:text-indigo-500 transition-colors">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
                                 <button onClick={() => {const now=new Date(); setCurrentDate(now); setSelectedDate(now);}} className="text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full">Today</button>
@@ -561,7 +536,6 @@
                                         <h2 className="text-2xl font-bold dark:text-white">Unscheduled Tasks</h2>
                                         <span className="text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded-full font-bold">{habits.filter(h=>h.isInbox).length} Items</span>
                                     </div>
-                                    
                                     {habits.filter(h => h.isInbox).map(h => (
                                         <div key={h.id} className="bg-white dark:bg-dark-800 p-4 rounded-xl border border-gray-200 dark:border-dark-700 flex justify-between items-center group shadow-sm hover:shadow-md transition-all">
                                             <div className="flex items-center gap-4">
@@ -578,7 +552,6 @@
                                             </button>
                                         </div>
                                     ))}
-                                    
                                     {habits.filter(h => h.isInbox).length === 0 && (
                                         <div className="text-center py-20 opacity-50">
                                             <div className="text-6xl mb-4">🎉</div>
@@ -607,106 +580,78 @@
                     </div>
 
                     {/* RIGHT SIDEBAR (Agenda) */}
-<div className="w-full md:w-96 bg-gray-50 dark:bg-dark-800/50 border-t md:border-t-0 md:border-l border-gray-200 dark:border-dark-700 flex flex-col z-20 shadow-xl h-[50%] md:h-full order-2">
-    <div className="glass px-6 py-4 md:p-6 border-b border-gray-200/50 dark:border-dark-700 flex flex-col gap-3 sticky top-0 z-30">
-        <div className="flex justify-between items-center">
-            <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}</h2>
-                <p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm">{selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p>
-            </div>
-            <div className="flex items-center gap-2">
-                {/* SORT MODE TOGGLE */}
-                <button 
-                    onClick={() => {
-                        setSortMode(sortMode === 'time' ? 'manual' : 'time');
-                        setIsReordering(false); // Always reset reordering when switching modes
-                    }} 
-                    className={`p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold ${sortMode === 'manual' ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-200' : 'bg-white dark:bg-dark-700 text-gray-500'}`} 
-                    title="Toggle Sort Mode"
-                >
-                    {sortMode === 'time' ? <><Clock size={16}/> Auto</> : <><Sort size={16}/> Manual</>}
-                </button>
-
-                {/* NEW: REORDER BUTTON (Only shows in Manual Mode) */}
-                {sortMode === 'manual' && (
-                    <button 
-                        onClick={() => setIsReordering(!isReordering)}
-                        className={`p-2 rounded-lg transition-colors text-xs font-bold flex items-center gap-1 ${isReordering ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 ring-2 ring-indigo-500' : 'bg-white dark:bg-dark-700 text-gray-400'}`}
-                    >
-                        {isReordering ? <Check size={16}/> : <Edit2 size={16}/>}
-                    </button>
-                )}
-
-                <div className="md:hidden"><button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="bg-indigo-600 text-white p-2 rounded-lg shadow-sm"><Plus size={18} /></button></div>
-            </div>
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            {visibleCategories.map(c => (
-                <button key={c} onClick={() => setSelectedCategory(c)} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap ${selectedCategory === c ? 'bg-gray-800 text-white dark:bg-white dark:text-black' : 'bg-white dark:bg-dark-700 text-gray-500 border border-gray-100 dark:border-dark-600'}`}>{c}</button>
-            ))}
-        </div>
-    </div>
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">
-        {todaysHabits.length === 0 ? <div className="text-center py-10 text-gray-400 dark:text-gray-600"><p className="text-sm font-medium">Nothing scheduled.</p></div> : 
-            <div className="space-y-3">{todaysHabits.map(h => {
-                const isDone = completions[selectedDateKey]?.includes(h.id);
-                const type = h.type; const isHeroic = h.difficulty === 'heroic';
-                return (
-                    <div 
-                        key={h.id} 
-                        onPointerDown={() => handlePointerDown(h)}
-                        onPointerUp={handlePointerUp}
-                        onPointerLeave={handlePointerUp}
-                        className={`relative group flex flex-col p-3.5 rounded-2xl border transition-all duration-200 no-select ${isHeroic && !isDone ? 'border-yellow-400/50 bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-500/30' : type === 'birthday' ? 'border-pink-200 bg-pink-50 dark:bg-pink-900/10' : isDone ? 'bg-white/50 dark:bg-dark-700/50 border-transparent opacity-70' : 'bg-white dark:bg-dark-700 border-gray-100 dark:border-dark-600 shadow-sm'}`}
-                    >
-                        <div className="flex items-center cursor-pointer">
-                            
-                            {/* ARROWS (Only visible when isReordering is TRUE) */}
-                            {isReordering && (
-                                <div className="flex flex-col mr-2 gap-1 animate-fade-in">
-                                    <button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, -1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-indigo-600"><ArrowUp size={12}/></button>
-                                    <button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, 1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-indigo-600"><ArrowDown size={12}/></button>
-                                </div>
-                            )}
-                            
-                            <div onClick={() => toggleHabit(h.id, selectedDateKey)} className={`w-6 h-6 rounded-lg mr-3 flex items-center justify-center transition-colors ${isDone ? 'bg-indigo-500 text-white' : (type === 'birthday' ? 'bg-pink-100 text-pink-500' : type === 'event' ? 'bg-blue-100 text-blue-500' : isHeroic ? 'bg-yellow-100 text-yellow-500' : 'bg-gray-100 dark:bg-dark-800 text-transparent')}`}>
-                                {isHeroic && !isDone ? <Star size={14} fill="currentColor" /> : type === 'birthday' ? <Cake size={14} /> : type === 'event' ? <CalendarIcon size={14} /> : <Check size={14} strokeWidth={3} />}
-                            </div>
-                            
-                            <div className="flex-1 min-w-0" onClick={() => { if(!window.isLongPress && !isReordering) toggleHabit(h.id, selectedDateKey); }}>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2"><span className="text-lg">{h.icon}</span><span className={`text-sm font-bold truncate ${isDone ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>{h.name}</span></div>
-                                    <div className="flex items-center gap-1">
-                                        {!isDone && (type === 'habit' || type === 'task') && h.useTimer && <button onClick={(e) => { e.stopPropagation(); setActiveFocusHabit(h); }} className="p-1 text-gray-300 hover:text-indigo-500"><Play size={14} fill="currentColor" /></button>}
-                                        <button onClick={(e) => { e.stopPropagation(); setDetailHabit(h); }} className="p-1 text-gray-300 hover:text-indigo-500 md:hidden"><FileText size={12}/></button>
-                                        <button onClick={(e) => { e.stopPropagation(); setEditingHabit(h); setIsModalOpen(true); }} className="p-1 text-gray-300 hover:text-indigo-500"><Edit2 size={12} /></button>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                    {h.time && <span className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded"><Clock size={10} /> {h.time}</span>}
-                                    {type === 'task' && <span className="text-[9px] font-bold bg-gray-100 dark:bg-dark-600 text-gray-500 px-1.5 py-0.5 rounded uppercase">Task</span>}
-                                    {dailyNotes[`${h.id}_${selectedDateKey}`] && <span className="text-[9px] font-bold bg-yellow-100 text-yellow-600 px-1.5 py-0.5 rounded uppercase">Note</span>}
+                    <div className="w-full md:w-96 bg-gray-50 dark:bg-dark-800/50 border-t md:border-t-0 md:border-l border-gray-200 dark:border-dark-700 flex flex-col z-20 shadow-xl h-[50%] md:h-full order-2">
+                        <div className="glass px-6 py-4 md:p-6 border-b border-gray-200/50 dark:border-dark-700 flex flex-col gap-3 sticky top-0 z-30">
+                            <div className="flex justify-between items-center">
+                                <div><h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}</h2><p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm">{selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p></div>
+                                <div className="flex items-center gap-3">
+                                    <div className="md:hidden"><button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="bg-indigo-600 text-white p-2 rounded-lg shadow-sm"><Plus size={18} /></button></div>
                                 </div>
                             </div>
-                        </div>
-                        {h.subtasks && h.subtasks.length > 0 && (
-                            <div className="mt-3 pl-9 space-y-1">
-                                {h.subtasks.map((st, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 cursor-pointer" onClick={(e) => {e.stopPropagation(); toggleSubtask(h.id, idx)}}>
-                                        <div className={`w-3 h-3 rounded border flex items-center justify-center ${st.completed ? 'bg-indigo-400 border-indigo-400' : 'border-gray-300'}`}>
-                                            {st.completed && <Check size={8} className="text-white"/>}
-                                        </div>
-                                        <span className={`text-xs ${st.completed ? 'line-through text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>{st.text}</span>
-                                    </div>
+                            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                                {visibleCategories.map(c => (
+                                    <button key={c} onClick={() => setSelectedCategory(c)} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap ${selectedCategory === c ? 'bg-gray-800 text-white dark:bg-white dark:text-black' : 'bg-white dark:bg-dark-700 text-gray-500 border border-gray-100 dark:border-dark-600'}`}>{c}</button>
                                 ))}
                             </div>
-                        )}
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">
+                            {todaysHabits.length === 0 ? <div className="text-center py-10 text-gray-400 dark:text-gray-600"><p className="text-sm font-medium">Nothing scheduled.</p></div> : 
+                                <div className="space-y-3">{todaysHabits.map(h => {
+                                    const isDone = completions[selectedDateKey]?.includes(h.id);
+                                    const type = h.type; const isHeroic = h.difficulty === 'heroic';
+                                    return (
+                                        <div 
+                                            key={h.id} 
+                                            onPointerDown={() => handlePointerDown(h)}
+                                            onPointerUp={handlePointerUp}
+                                            onPointerLeave={handlePointerUp}
+                                            className={`relative group flex flex-col p-3.5 rounded-2xl border transition-all duration-200 no-select ${isHeroic && !isDone ? 'border-yellow-400/50 bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-500/30' : type === 'birthday' ? 'border-pink-200 bg-pink-50 dark:bg-pink-900/10' : isDone ? 'bg-white/50 dark:bg-dark-700/50 border-transparent opacity-70' : 'bg-white dark:bg-dark-700 border-gray-100 dark:border-dark-600 shadow-sm'}`}
+                                        >
+                                            <div className="flex items-center cursor-pointer">
+                                                <div className="flex flex-col mr-2 gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100 opacity-100" onPointerDown={(e) => e.stopPropagation()}>
+                                                    <button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, -1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-indigo-600"><ArrowUp size={12}/></button>
+                                                    <button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, 1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-indigo-600"><ArrowDown size={12}/></button>
+                                                </div>
+                                                
+                                                <div onClick={() => toggleHabit(h.id, selectedDateKey)} className={`w-6 h-6 rounded-lg mr-3 flex items-center justify-center transition-colors ${isDone ? 'bg-indigo-500 text-white' : (type === 'birthday' ? 'bg-pink-100 text-pink-500' : type === 'event' ? 'bg-blue-100 text-blue-500' : isHeroic ? 'bg-yellow-100 text-yellow-500' : 'bg-gray-100 dark:bg-dark-800 text-transparent')}`}>
+                                                    {isHeroic && !isDone ? <Star size={14} fill="currentColor" /> : type === 'birthday' ? <Cake size={14} /> : type === 'event' ? <CalendarIcon size={14} /> : <Check size={14} strokeWidth={3} />}
+                                                </div>
+                                                
+                                                <div className="flex-1 min-w-0" onClick={() => { if(!window.isLongPress) toggleHabit(h.id, selectedDateKey); }}>
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2"><span className="text-lg">{h.icon}</span><span className={`text-sm font-bold truncate ${isDone ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>{h.name}</span></div>
+                                                        <div className="flex items-center gap-1">
+                                                            {!isDone && (type === 'habit' || type === 'task') && h.useTimer && <button onClick={(e) => { e.stopPropagation(); setActiveFocusHabit(h); }} className="p-1 text-gray-300 hover:text-indigo-500"><Play size={14} fill="currentColor" /></button>}
+                                                            <button onClick={(e) => { e.stopPropagation(); setDetailHabit(h); }} className="p-1 text-gray-300 hover:text-indigo-500 md:hidden"><FileText size={12}/></button>
+                                                            <button onClick={(e) => { e.stopPropagation(); setEditingHabit(h); setIsModalOpen(true); }} className="p-1 text-gray-300 hover:text-indigo-500"><Edit2 size={12} /></button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        {h.time && <span className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded"><Clock size={10} /> {h.time}</span>}
+                                                        {type === 'task' && <span className="text-[9px] font-bold bg-gray-100 dark:bg-dark-600 text-gray-500 px-1.5 py-0.5 rounded uppercase">Task</span>}
+                                                        {dailyNotes[`${h.id}_${selectedDateKey}`] && <span className="text-[9px] font-bold bg-yellow-100 text-yellow-600 px-1.5 py-0.5 rounded uppercase">Note</span>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {h.subtasks && h.subtasks.length > 0 && (
+                                                <div className="mt-3 pl-9 space-y-1">
+                                                    {h.subtasks.map((st, idx) => (
+                                                        <div key={idx} className="flex items-center gap-2 cursor-pointer" onClick={(e) => {e.stopPropagation(); toggleSubtask(h.id, idx)}}>
+                                                            <div className={`w-3 h-3 rounded border flex items-center justify-center ${st.completed ? 'bg-indigo-400 border-indigo-400' : 'border-gray-300'}`}>
+                                                                {st.completed && <Check size={8} className="text-white"/>}
+                                                            </div>
+                                                            <span className={`text-xs ${st.completed ? 'line-through text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>{st.text}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}</div>
+                            }
+                        </div>
                     </div>
-                );
-            })}</div>
-        }
-    </div>
-</div>
+
                     {/* MODALS */}
                     <HabitModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveHabit} onDelete={handleDeleteHabit} initialData={editingHabit} />
                     <NoteModal isOpen={!!detailHabit} onClose={() => setDetailHabit(null)} habit={detailHabit} notes={detailHabit ? dailyNotes[`${detailHabit.id}_${selectedDateKey}`] : ''} onSaveNote={handleSaveNote} />
