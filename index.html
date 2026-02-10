@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#4f46e5">
-    <title>Habit OS</title>
+    <title>Habit OS - Cloud</title>
     
     <link rel="manifest" href='data:application/manifest+json,{"name":"Habit OS","short_name":"HabitOS","start_url":".","display":"standalone","background_color":"#0f172a","theme_color":"#4f46e5","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/4333/4333609.png","sizes":"192x192","type":"image/png"}]}'>
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4333/4333609.png">
@@ -16,6 +16,7 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
         tailwind.config = {
@@ -47,18 +48,12 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- SAFE DATA LOADING UTILITY ---
-        // This prevents the "White Screen of Death" by resetting bad data
-        const safeLoad = (key, fallback) => {
-            try {
-                const item = localStorage.getItem(key);
-                if (!item || item === "undefined" || item === "null") return fallback;
-                return JSON.parse(item);
-            } catch (e) {
-                console.warn(`Corrupt data found in ${key}, resetting.`);
-                return fallback;
-            }
-        };
+        // --- ⚠️ PASTE YOUR KEYS HERE ⚠️ ---
+        const SUPABASE_URL = 'https://skamctiefnbynpfkcrtt.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrYW1jdGllZm5ieW5wZmtjcnR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0MDk3MzcsImV4cCI6MjA4NTk4NTczN30.wm3orZAzxyZQ-gKgPxiQ59xKQJMEmHSVOVdv4ojJyAE';
+        // ----------------------------------
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // --- ICONS ---
         const Icon = ({ children, size=20, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>;
@@ -88,8 +83,7 @@
         const FileText = p => <Icon {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></Icon>;
         const Refresh = p => <Icon {...p}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></Icon>;
         const Settings = p => <Icon {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.39a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></Icon>;
-        const Download = p => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Icon>;
-        const Upload = p => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></Icon>;
+        const LogOut = p => <Icon {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></Icon>;
         const Palmtree = p => <Icon {...p}><path d="M13 8c0-2.76-2.46-5-5.5-5S2 5.24 2 8h2c0-1.66 1.57-3 3.5-3S11 6.34 11 8h2z"/><path d="M13 7.14A5.82 5.82 0 0 1 16.5 6c3.04 0 5.5 2.24 5.5 5h-2c0-1.66-1.57-3-3.5-3s-3.5 1.34-3.5 3c0 .2 0 .4.06.58l-1.06-.44z"/><path d="M5.8 9.5a7.26 7.26 0 0 0-2.11 1.31 6.94 6.94 0 0 0-.6 8.87l.45.65c.61.85 1.76.85 2.37 0l2.36-3.32a.5.5 0 0 1 .41-.2h3.64a.5.5 0 0 1 .41.2l2.36 3.32c.61.85 1.76.85 2.37 0l.45-.65a6.94 6.94 0 0 0-.6-8.87 7.26 7.26 0 0 0-2.11-1.31"/><path d="M12 16v6"/></Icon>;
 
         // --- CONSTANTS ---
@@ -118,7 +112,65 @@
             return freq.includes(date.getDay());
         };
 
-        // --- COMPONENTS ---
+        // --- LOGIN COMPONENT ---
+        const Auth = () => {
+            const [email, setEmail] = useState('');
+            const [loading, setLoading] = useState(false);
+            
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                const { error } = await supabase.auth.signInWithOtp({ 
+                    email, 
+                    options: { emailRedirectTo: window.location.href } 
+                });
+                if (error) alert(error.message);
+                else alert('Check your email! A magic link has been sent.');
+                setLoading(false);
+            };
+
+            return (
+                <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-dark-900 p-4">
+                    <div className="w-full max-w-sm bg-white dark:bg-dark-800 rounded-3xl shadow-xl p-8 animate-fade-in">
+                        <div className="flex justify-center mb-6 text-indigo-600 dark:text-indigo-400">
+                            <Trophy size={48} />
+                        </div>
+                        <h1 className="text-2xl font-bold text-center mb-2 dark:text-white">Welcome to Habit OS</h1>
+                        <p className="text-gray-500 text-center mb-8 text-sm">Sign in to sync your productivity.</p>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <input type="email" placeholder="Your email address" className="w-full p-4 rounded-xl bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                            <button disabled={loading} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-transform hover:-translate-y-0.5 disabled:opacity-50">{loading ? 'Sending...' : 'Send Magic Link'}</button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- SETTINGS COMPONENT ---
+        const SettingsModal = ({ isOpen, onClose, session, vacationMode, setVacationMode }) => {
+            if (!isOpen) return null;
+            const handleLogout = async () => { await supabase.auth.signOut(); window.location.reload(); };
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl w-full max-w-sm animate-fade-in p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold dark:text-white flex items-center gap-2"><Settings size={20} /> Settings</h2>
+                            <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="p-4 bg-gray-50 dark:bg-dark-900 rounded-xl"><p className="text-xs text-gray-400 mb-1">Logged in as</p><p className="text-sm font-bold truncate dark:text-white">{session?.user?.email}</p></div>
+                            <div className="flex items-center justify-between p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
+                                <div className="flex items-center gap-3"><div className="bg-indigo-200 dark:bg-indigo-800 p-2 rounded-lg text-indigo-700 dark:text-indigo-300"><Palmtree size={18} /></div><div><h3 className="font-bold text-sm dark:text-gray-200">Vacation Mode</h3><p className="text-[10px] text-gray-500 dark:text-gray-400">Pause streaks</p></div></div>
+                                <button onClick={() => setVacationMode(!vacationMode)} className={`w-10 h-6 rounded-full transition-colors relative ${vacationMode ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'}`}><div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${vacationMode ? 'translate-x-4' : ''}`}></div></button>
+                            </div>
+                            <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 p-3 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/30 text-sm font-bold"><LogOut size={16} /> Sign Out</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- SUB COMPONENTS (Heatmap, Charts, Timer) ---
         const YearHeatmap = ({ completions, habits }) => {
             const heatmapRef = useRef(null);
             useEffect(() => { if (heatmapRef.current) { const scrollRatio = new Date().getMonth() / 12; heatmapRef.current.scrollLeft = heatmapRef.current.scrollWidth * scrollRatio; } }, []);
@@ -137,20 +189,7 @@
                 if (currentWeek.length > 0) grid.push(currentWeek);
                 return grid;
             }, [completions, habits]);
-            return (
-                <div ref={heatmapRef} className="h-full w-full overflow-x-auto overflow-y-hidden pb-1 scrollbar-hide flex flex-col justify-center">
-                    <div className="flex gap-[3px] min-w-max px-2">
-                        {data.map((week, wIndex) => (
-                            <div key={wIndex} className="flex flex-col gap-[3px]">
-                                {week.map((day) => (
-                                    day.isPadding ? <div key={day.key} className="w-[10px] h-[10px] md:w-[12px] md:h-[12px] bg-transparent"></div> :
-                                    <div key={day.key} title={`${day.key}: ${Math.round(day.val * 100)}%`} className={`w-[10px] h-[10px] md:w-[12px] md:h-[12px] rounded-[2px] transition-colors ${day.isFuture ? 'bg-gray-100/50 dark:bg-dark-700/30' : day.val === 0 ? 'bg-gray-200 dark:bg-dark-700' : day.val >= 1 ? 'bg-emerald-500' : day.val >= 0.7 ? 'bg-emerald-400' : day.val >= 0.4 ? 'bg-emerald-300' : 'bg-emerald-200 dark:bg-emerald-900'}`}></div>
-                                ))}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
+            return (<div ref={heatmapRef} className="h-full w-full overflow-x-auto overflow-y-hidden pb-1 scrollbar-hide flex flex-col justify-center"><div className="flex gap-[3px] min-w-max px-2">{data.map((week, wIndex) => (<div key={wIndex} className="flex flex-col gap-[3px]">{week.map((day) => (day.isPadding ? <div key={day.key} className="w-[10px] h-[10px] md:w-[12px] md:h-[12px] bg-transparent"></div> : <div key={day.key} title={`${day.key}: ${Math.round(day.val * 100)}%`} className={`w-[10px] h-[10px] md:w-[12px] md:h-[12px] rounded-[2px] transition-colors ${day.isFuture ? 'bg-gray-100/50 dark:bg-dark-700/30' : day.val === 0 ? 'bg-gray-200 dark:bg-dark-700' : day.val >= 1 ? 'bg-emerald-500' : day.val >= 0.7 ? 'bg-emerald-400' : day.val >= 0.4 ? 'bg-emerald-300' : 'bg-emerald-200 dark:bg-emerald-900'}`}></div>))}</div>))}</div></div>);
         };
 
         const ConsistencyChart = ({ completions, habits }) => {
@@ -165,165 +204,24 @@
                 }
                 return result;
             }, [completions, habits]);
-            return (
-                <div className="h-full w-full overflow-x-auto pb-1 scrollbar-hide">
-                    <div className="flex items-end h-full gap-2 min-w-max px-1">
-                        {data.map((d, i) => (
-                            <div key={i} title={`${d.fullDate}: ${Math.round(d.value * 100)}%`} className="flex flex-col items-center w-6 flex-shrink-0 h-full justify-end group">
-                                <div className="w-full h-full flex items-end relative bg-gray-50 dark:bg-dark-800 rounded-md overflow-hidden">
-                                    <div className={`w-full rounded-b-md rounded-t-sm transition-all duration-500 ${d.value >= 1 ? 'bg-emerald-500' : d.value >= 0.8 ? 'bg-blue-400' : d.value >= 0.5 ? 'bg-orange-400' : d.value > 0 ? 'bg-gray-400' : 'bg-transparent'}`} style={{ height: `${Math.min(d.value * 100, 100)}%` }}></div>
-                                </div>
-                                <span className="text-[9px] text-gray-400 mt-1.5 font-medium whitespace-nowrap">{d.label}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
+            return (<div className="h-full w-full overflow-x-auto pb-1 scrollbar-hide"><div className="flex items-end h-full gap-2 min-w-max px-1">{data.map((d, i) => (<div key={i} title={`${d.fullDate}: ${Math.round(d.value * 100)}%`} className="flex flex-col items-center w-6 flex-shrink-0 h-full justify-end group"><div className="w-full h-full flex items-end relative bg-gray-50 dark:bg-dark-800 rounded-md overflow-hidden"><div className={`w-full rounded-b-md rounded-t-sm transition-all duration-500 ${d.value >= 1 ? 'bg-emerald-500' : d.value >= 0.8 ? 'bg-blue-400' : d.value >= 0.5 ? 'bg-orange-400' : d.value > 0 ? 'bg-gray-400' : 'bg-transparent'}`} style={{ height: `${Math.min(d.value * 100, 100)}%` }}></div></div><span className="text-[9px] text-gray-400 mt-1.5 font-medium whitespace-nowrap">{d.label}</span></div>))}</div></div>);
         };
 
         const FocusTimer = ({ habit, onClose, onComplete }) => {
-            const [duration, setDuration] = useState(25);
-            const [timeLeft, setTimeLeft] = useState(25 * 60);
-            const [isActive, setIsActive] = useState(false);
+            const [duration, setDuration] = useState(25); const [timeLeft, setTimeLeft] = useState(25 * 60); const [isActive, setIsActive] = useState(false);
             const formatTime = (s) => { const m = Math.floor(s / 60); const sc = s % 60; return `${m}:${sc < 10 ? '0' : ''}${sc}`; };
             const setTime = (min) => { setDuration(min); setTimeLeft(min * 60); setIsActive(false); };
-            useEffect(() => {
-                let interval = null;
-                if (isActive && timeLeft > 0) interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
-                else if (timeLeft === 0) { setIsActive(false); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); onComplete(); }
-                return () => clearInterval(interval);
-            }, [isActive, timeLeft]);
-            return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-dark-900/95 text-white animate-fade-in backdrop-blur-sm">
-                    <button onClick={onClose} className="absolute top-6 right-6 p-2 text-gray-400 hover:text-white"><X size={32}/></button>
-                    <div className="flex flex-col items-center gap-8 w-full max-w-md p-4">
-                        <div className="text-xl font-medium text-indigo-400 flex items-center gap-2">{habit.icon} {habit.name}</div>
-                        <div className="text-9xl font-bold font-mono tracking-tighter tabular-nums">{formatTime(timeLeft)}</div>
-                        {!isActive && (<div className="flex gap-3 mb-4">{[15, 25, 45, 60].map(m => (<button key={m} onClick={() => setTime(m)} className={`px-4 py-2 rounded-full font-bold text-sm transition-all ${duration === m ? 'bg-white text-dark-900' : 'bg-dark-800 text-gray-400 hover:text-white'}`}>{m}m</button>))}</div>)}
-                        <div className="flex gap-6"><button onClick={() => setIsActive(!isActive)} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-2xl ${isActive ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>{isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1"/>}</button></div>
-                    </div>
-                </div>
-            );
+            useEffect(() => { let interval = null; if (isActive && timeLeft > 0) interval = setInterval(() => setTimeLeft(t => t - 1), 1000); else if (timeLeft === 0) { setIsActive(false); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); onComplete(); } return () => clearInterval(interval); }, [isActive, timeLeft]);
+            return (<div className="fixed inset-0 z-[60] flex items-center justify-center bg-dark-900/95 text-white animate-fade-in backdrop-blur-sm"><button onClick={onClose} className="absolute top-6 right-6 p-2 text-gray-400 hover:text-white"><X size={32}/></button><div className="flex flex-col items-center gap-8 w-full max-w-md p-4"><div className="text-xl font-medium text-indigo-400 flex items-center gap-2">{habit.icon} {habit.name}</div><div className="text-9xl font-bold font-mono tracking-tighter tabular-nums">{formatTime(timeLeft)}</div>{!isActive && (<div className="flex gap-3 mb-4">{[15, 25, 45, 60].map(m => (<button key={m} onClick={() => setTime(m)} className={`px-4 py-2 rounded-full font-bold text-sm transition-all ${duration === m ? 'bg-white text-dark-900' : 'bg-dark-800 text-gray-400 hover:text-white'}`}>{m}m</button>))}</div>)}<div className="flex gap-6"><button onClick={() => setIsActive(!isActive)} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-2xl ${isActive ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>{isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1"/>}</button></div></div></div>);
         };
 
         const HabitModal = ({ isOpen, onClose, onSave, initialData, onDelete }) => {
-            const [name, setName] = useState('');
-            const [icon, setIcon] = useState(EMOJIS[0]);
-            const [type, setType] = useState('habit');
-            const [category, setCategory] = useState('General');
-            const [difficulty, setDifficulty] = useState('easy');
-            const [useTimer, setUseTimer] = useState(false);
-            const [monthlyGoal, setMonthlyGoal] = useState('');
-            const [time, setTime] = useState('');
-            const [frequency, setFrequency] = useState([0,1,2,3,4,5,6]);
-            const [targetDate, setTargetDate] = useState(formatDateKey(new Date()));
-            const [addToInbox, setAddToInbox] = useState(false);
-            const [subtasks, setSubtasks] = useState([]);
-
-            useEffect(() => {
-                if (isOpen) {
-                    if (initialData) {
-                        setName(initialData.name); setIcon(initialData.icon); 
-                        setType(initialData.type || (initialData.isTask ? 'task' : 'habit'));
-                        setCategory(initialData.category || 'General'); setDifficulty(initialData.difficulty || 'easy');
-                        setUseTimer(!!initialData.useTimer); setMonthlyGoal(initialData.monthlyGoal || '');
-                        setTime(initialData.time || ''); setFrequency(initialData.frequency || [0,1,2,3,4,5,6]);
-                        setTargetDate(initialData.targetDate || formatDateKey(new Date()));
-                        setAddToInbox(!!initialData.isInbox);
-                        setSubtasks(initialData.subtasks || []);
-                    } else {
-                        setName(''); setIcon(EMOJIS[0]); setType('habit'); setCategory('General');
-                        setDifficulty('easy'); setUseTimer(false); setMonthlyGoal(''); setTime('');
-                        setFrequency([0,1,2,3,4,5,6]); setSubtasks([]); 
-                        setTargetDate(formatDateKey(new Date())); setAddToInbox(false);
-                    }
-                }
-            }, [isOpen, initialData]);
-
-            const toggleDay = (d) => { frequency.includes(d) ? setFrequency(frequency.filter(x => x !== d)) : setFrequency([...frequency, d].sort()); };
-            const addSubtask = () => setSubtasks([...subtasks, { text: '', completed: false }]);
-            const updateSubtask = (idx, val) => { const newS = [...subtasks]; newS[idx].text = val; setSubtasks(newS); };
-            const removeSubtask = (idx) => setSubtasks(subtasks.filter((_, i) => i !== idx));
-
+            const [name, setName] = useState(''); const [icon, setIcon] = useState(EMOJIS[0]); const [type, setType] = useState('habit'); const [category, setCategory] = useState('General'); const [difficulty, setDifficulty] = useState('easy'); const [useTimer, setUseTimer] = useState(false); const [monthlyGoal, setMonthlyGoal] = useState(''); const [time, setTime] = useState(''); const [frequency, setFrequency] = useState([0,1,2,3,4,5,6]); const [targetDate, setTargetDate] = useState(formatDateKey(new Date())); const [addToInbox, setAddToInbox] = useState(false); const [subtasks, setSubtasks] = useState([]);
+            useEffect(() => { if (isOpen) { if (initialData) { setName(initialData.name); setIcon(initialData.icon); setType(initialData.type || (initialData.isTask ? 'task' : 'habit')); setCategory(initialData.category || 'General'); setDifficulty(initialData.difficulty || 'easy'); setUseTimer(!!initialData.useTimer); setMonthlyGoal(initialData.monthlyGoal || ''); setTime(initialData.time || ''); setFrequency(initialData.frequency || [0,1,2,3,4,5,6]); setTargetDate(initialData.targetDate || formatDateKey(new Date())); setAddToInbox(!!initialData.isInbox); setSubtasks(initialData.subtasks || []); } else { setName(''); setIcon(EMOJIS[0]); setType('habit'); setCategory('General'); setDifficulty('easy'); setUseTimer(false); setMonthlyGoal(''); setTime(''); setFrequency([0,1,2,3,4,5,6]); setSubtasks([]); setTargetDate(formatDateKey(new Date())); setAddToInbox(false); } } }, [isOpen, initialData]);
+            const toggleDay = (d) => { frequency.includes(d) ? setFrequency(frequency.filter(x => x !== d)) : setFrequency([...frequency, d].sort()); }; const addSubtask = () => setSubtasks([...subtasks, { text: '', completed: false }]); const updateSubtask = (idx, val) => { const newS = [...subtasks]; newS[idx].text = val; setSubtasks(newS); }; const removeSubtask = (idx) => setSubtasks(subtasks.filter((_, i) => i !== idx));
             if (!isOpen) return null;
             return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl w-full max-w-sm animate-fade-in overflow-hidden max-h-[90vh] overflow-y-auto">
-                        <div className="px-6 py-4 border-b border-gray-100 dark:border-dark-700 flex justify-between items-center">
-                            <h3 className="font-bold text-gray-800 dark:text-gray-100">{initialData ? 'Edit' : 'New'}</h3>
-                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                        </div>
-                        <form onSubmit={(e) => { 
-                            e.preventDefault(); 
-                            onSave({ 
-                                id: initialData?.id, name, icon, type, category, difficulty, useTimer, 
-                                monthlyGoal: parseInt(monthlyGoal) || 0, time, frequency, 
-                                targetDate: addToInbox ? '' : targetDate, 
-                                subtasks: subtasks.filter(s=>s.text.trim()) 
-                            }); 
-                            onClose(); 
-                        }} className="p-6 space-y-5">
-                            <div className="grid grid-cols-4 gap-1 bg-gray-100 dark:bg-dark-900 p-1 rounded-lg">
-                                {['habit', 'task', 'event', 'birthday'].map(t => (
-                                    <button key={t} type="button" onClick={() => setType(t)} className={`py-2 rounded-md text-[10px] font-bold uppercase transition-all ${type === t ? 'bg-white dark:bg-dark-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`}>{t === 'habit' ? 'Routine' : t}</button>
-                                ))}
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Name</label>
-                                <input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-white" />
-                            </div>
-                            {(type === 'habit' || type === 'task') && (
-                                <div className="space-y-4">
-                                    <div className="flex gap-3">
-                                        <div className="flex-1">
-                                            <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Difficulty</label>
-                                            <div className="flex gap-2">
-                                                {['easy', 'medium', 'heroic'].map(d => (
-                                                    <button key={d} type="button" onClick={() => setDifficulty(d)} className={`flex-1 py-2 rounded-lg text-xs font-bold border capitalize transition-all ${difficulty === d ? (d==='heroic' ? 'bg-yellow-50 border-yellow-500 text-yellow-600' : 'bg-indigo-50 border-indigo-500 text-indigo-600') : 'border-gray-200 dark:border-dark-700 text-gray-400'}`}>{d}</button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <div onClick={() => setUseTimer(!useTimer)} className={`flex-1 flex items-center justify-center p-3 rounded-xl border cursor-pointer transition-colors ${useTimer ? 'bg-indigo-50 border-indigo-500 text-indigo-600' : 'bg-gray-50 border-gray-200 dark:bg-dark-900 dark:border-dark-700 text-gray-500'}`}>
-                                            <div className="flex items-center gap-2"><Clock size={16} /><span className="text-xs font-bold">Timer</span></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            <div className="flex gap-3">
-                                <div className="flex-1"><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Time</label><input type="time" value={time} onChange={e => setTime(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none text-sm dark:text-white" /></div>
-                                {(type !== 'habit') && (
-                                    <div className="flex-1">
-                                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Date</label>
-                                        {type === 'task' && (
-                                            <div className="mb-2 flex items-center gap-2">
-                                                <input type="checkbox" checked={addToInbox} onChange={(e) => setAddToInbox(e.target.checked)} id="inboxCheck" className="rounded text-indigo-600" />
-                                                <label htmlFor="inboxCheck" className="text-xs font-bold text-indigo-500 cursor-pointer">Save to Inbox</label>
-                                            </div>
-                                        )}
-                                        <input type="date" disabled={addToInbox} value={targetDate} onChange={e => setTargetDate(e.target.value)} className={`w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none text-sm dark:text-white ${addToInbox ? 'opacity-50' : ''}`} />
-                                    </div>
-                                )}
-                            </div>
-                            {type === 'habit' && (<div><label className="block text-xs font-bold text-gray-400 uppercase mb-2">Frequency</label><div className="flex justify-between">{DAYS_OF_WEEK.map((d, i) => (<button key={i} type="button" onClick={() => toggleDay(i)} className={`w-8 h-8 rounded-full text-xs font-bold transition-all ${frequency.includes(i) ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-dark-700 text-gray-400'}`}>{d}</button>))}</div></div>)}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Sub-tasks</label>
-                                <div className="space-y-2 max-h-32 overflow-y-auto">
-                                    {subtasks.map((st, i) => (
-                                        <div key={i} className="flex gap-2">
-                                            <input value={st.text} onChange={(e) => updateSubtask(i, e.target.value)} className="flex-1 p-2 bg-gray-50 dark:bg-dark-900 rounded-lg text-sm border-transparent" placeholder="Step..." />
-                                            <button type="button" onClick={() => removeSubtask(i)} className="text-red-400"><X size={14}/></button>
-                                        </div>
-                                    ))}
-                                    <button type="button" onClick={addSubtask} className="text-xs text-indigo-500 font-bold hover:underline">+ Add Step</button>
-                                </div>
-                            </div>
-                            <div><label className="block text-xs font-bold text-gray-400 uppercase mb-2">Icon</label><div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">{EMOJIS.map(e => <button key={e} type="button" onClick={() => setIcon(e)} className={`flex-shrink-0 w-10 h-10 flex items-center justify-center text-xl rounded-lg ${icon === e ? 'bg-indigo-100 dark:bg-dark-700 border-2 border-indigo-500' : 'bg-gray-50 dark:bg-dark-900 dark:text-white'}`}>{e}</button>)}</div></div>
-                            <div className="flex gap-3 pt-2">{initialData && <button type="button" onClick={() => { onDelete(initialData.id); onClose(); }} className="flex-1 py-3 text-red-600 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm font-bold">Delete</button>}<button type="submit" className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md">Save</button></div>
-                        </form>
-                    </div>
-                </div>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"><div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl w-full max-w-sm animate-fade-in overflow-hidden max-h-[90vh] overflow-y-auto"><div className="px-6 py-4 border-b border-gray-100 dark:border-dark-700 flex justify-between items-center"><h3 className="font-bold text-gray-800 dark:text-gray-100">{initialData ? 'Edit' : 'New'}</h3><button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button></div><form onSubmit={(e) => { e.preventDefault(); onSave({ id: initialData?.id, name, icon, type, category, difficulty, useTimer, monthlyGoal: parseInt(monthlyGoal) || 0, time, frequency, targetDate: addToInbox ? '' : targetDate, subtasks: subtasks.filter(s=>s.text.trim()) }); onClose(); }} className="p-6 space-y-5"><div className="grid grid-cols-4 gap-1 bg-gray-100 dark:bg-dark-900 p-1 rounded-lg">{['habit', 'task', 'event', 'birthday'].map(t => (<button key={t} type="button" onClick={() => setType(t)} className={`py-2 rounded-md text-[10px] font-bold uppercase transition-all ${type === t ? 'bg-white dark:bg-dark-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`}>{t === 'habit' ? 'Routine' : t}</button>))}</div><div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Name</label><input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-white" /></div>{(type === 'habit' || type === 'task') && (<div className="space-y-4"><div className="flex gap-3"><div className="flex-1"><label className="block text-xs font-bold text-gray-400 uppercase mb-2">Difficulty</label><div className="flex gap-2">{['easy', 'medium', 'heroic'].map(d => (<button key={d} type="button" onClick={() => setDifficulty(d)} className={`flex-1 py-2 rounded-lg text-xs font-bold border capitalize transition-all ${difficulty === d ? (d==='heroic' ? 'bg-yellow-50 border-yellow-500 text-yellow-600' : 'bg-indigo-50 border-indigo-500 text-indigo-600') : 'border-gray-200 dark:border-dark-700 text-gray-400'}`}>{d}</button>))}</div></div></div><div className="flex gap-3"><div onClick={() => setUseTimer(!useTimer)} className={`flex-1 flex items-center justify-center p-3 rounded-xl border cursor-pointer transition-colors ${useTimer ? 'bg-indigo-50 border-indigo-500 text-indigo-600' : 'bg-gray-50 border-gray-200 dark:bg-dark-900 dark:border-dark-700 text-gray-500'}`}><div className="flex items-center gap-2"><Clock size={16} /><span className="text-xs font-bold">Timer</span></div></div></div></div>)}<div className="flex gap-3"><div className="flex-1"><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Time</label><input type="time" value={time} onChange={e => setTime(e.target.value)} className="w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none text-sm dark:text-white" /></div>{(type !== 'habit') && (<div className="flex-1"><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Date</label>{type === 'task' && (<div className="mb-2 flex items-center gap-2"><input type="checkbox" checked={addToInbox} onChange={(e) => setAddToInbox(e.target.checked)} id="inboxCheck" className="rounded text-indigo-600" /><label htmlFor="inboxCheck" className="text-xs font-bold text-indigo-500 cursor-pointer">Save to Inbox</label></div>)}<input type="date" disabled={addToInbox} value={targetDate} onChange={e => setTargetDate(e.target.value)} className={`w-full p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl focus:outline-none text-sm dark:text-white ${addToInbox ? 'opacity-50' : ''}`} /></div>)}</div>{type === 'habit' && (<div><label className="block text-xs font-bold text-gray-400 uppercase mb-2">Frequency</label><div className="flex justify-between">{DAYS_OF_WEEK.map((d, i) => (<button key={i} type="button" onClick={() => toggleDay(i)} className={`w-8 h-8 rounded-full text-xs font-bold transition-all ${frequency.includes(i) ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-dark-700 text-gray-400'}`}>{d}</button>))}</div></div>)}<div><label className="block text-xs font-bold text-gray-400 uppercase mb-2">Sub-tasks</label><div className="space-y-2 max-h-32 overflow-y-auto">{subtasks.map((st, i) => (<div key={i} className="flex gap-2"><input value={st.text} onChange={(e) => updateSubtask(i, e.target.value)} className="flex-1 p-2 bg-gray-50 dark:bg-dark-900 rounded-lg text-sm border-transparent" placeholder="Step..." /><button type="button" onClick={() => removeSubtask(i)} className="text-red-400"><X size={14}/></button></div>))}<button type="button" onClick={addSubtask} className="text-xs text-indigo-500 font-bold hover:underline">+ Add Step</button></div></div><div><label className="block text-xs font-bold text-gray-400 uppercase mb-2">Icon</label><div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">{EMOJIS.map(e => <button key={e} type="button" onClick={() => setIcon(e)} className={`flex-shrink-0 w-10 h-10 flex items-center justify-center text-xl rounded-lg ${icon === e ? 'bg-indigo-100 dark:bg-dark-700 border-2 border-indigo-500' : 'bg-gray-50 dark:bg-dark-900 dark:text-white'}`}>{e}</button>)}</div></div><div className="flex gap-3 pt-2">{initialData && <button type="button" onClick={() => { onDelete(initialData.id); onClose(); }} className="flex-1 py-3 text-red-600 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm font-bold">Delete</button>}<button type="submit" className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md">Save</button></div></form></div></div>
             );
         };
 
@@ -332,77 +230,20 @@
             useEffect(() => { if (isOpen && notes) setNote(notes || ''); }, [isOpen, notes]);
             if (!isOpen || !habit) return null;
             return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-2xl w-full max-w-sm animate-fade-in p-6">
-                        <div className="flex justify-between items-start mb-4"><div><div className="text-3xl mb-1">{habit.icon}</div><h2 className="text-xl font-bold dark:text-white">{habit.name}</h2></div></div>
-                        <textarea placeholder="Add details..." value={note} onChange={e => setNote(e.target.value)} className="w-full h-32 p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-gray-200 mb-4" />
-                        <div className="flex gap-3"><button onClick={onClose} className="flex-1 py-3 text-gray-500 font-bold">Cancel</button><button onClick={() => { onSaveNote(habit.id, note); onClose(); }} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Save</button></div>
-                    </div>
-                </div>
-            );
-        };
-
-        // --- SETTINGS MODAL ---
-        const SettingsModal = ({ isOpen, onClose, data, onImport, vacationMode, setVacationMode }) => {
-            if (!isOpen) return null;
-            const handleExport = () => {
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
-                const node = document.createElement('a');
-                node.setAttribute("href", dataStr);
-                node.setAttribute("download", "habit_os_backup.json");
-                document.body.appendChild(node);
-                node.click();
-                node.remove();
-            };
-            const handleFileChange = (e) => {
-                const fileReader = new FileReader();
-                fileReader.readAsText(e.target.files[0], "UTF-8");
-                fileReader.onload = (e) => {
-                    const parsed = JSON.parse(e.target.result);
-                    onImport(parsed);
-                    onClose();
-                };
-            };
-            return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl w-full max-w-sm animate-fade-in p-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold dark:text-white flex items-center gap-2"><Settings size={20} /> Settings</h2>
-                            <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
-                        </div>
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-indigo-200 dark:bg-indigo-800 p-2 rounded-lg text-indigo-700 dark:text-indigo-300"><Palmtree size={18} /></div>
-                                    <div><h3 className="font-bold text-sm dark:text-gray-200">Vacation Mode</h3><p className="text-[10px] text-gray-500 dark:text-gray-400">Pause streaks</p></div>
-                                </div>
-                                <button onClick={() => setVacationMode(!vacationMode)} className={`w-10 h-6 rounded-full transition-colors relative ${vacationMode ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${vacationMode ? 'translate-x-4' : ''}`}></div>
-                                </button>
-                            </div>
-                            <div className="space-y-3">
-                                <p className="text-xs font-bold text-gray-400 uppercase">Data Sovereignty</p>
-                                <button onClick={handleExport} className="w-full flex items-center justify-center gap-2 p-3 border border-gray-200 dark:border-dark-600 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-700 text-sm font-bold dark:text-gray-300">
-                                    <Download size={16} /> Export Backup
-                                </button>
-                                <label className="w-full flex items-center justify-center gap-2 p-3 border border-dashed border-gray-300 dark:border-dark-600 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-700 text-sm font-bold cursor-pointer text-gray-500 hover:text-indigo-600 transition-colors">
-                                    <Upload size={16} /> Import Backup
-                                    <input type="file" onChange={handleFileChange} className="hidden" />
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"><div className="bg-white dark:bg-dark-800 rounded-2xl shadow-2xl w-full max-w-sm animate-fade-in p-6"><div className="flex justify-between items-start mb-4"><div><div className="text-3xl mb-1">{habit.icon}</div><h2 className="text-xl font-bold dark:text-white">{habit.name}</h2></div></div><textarea placeholder="Add details..." value={note} onChange={e => setNote(e.target.value)} className="w-full h-32 p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm dark:text-gray-200 mb-4" /><div className="flex gap-3"><button onClick={onClose} className="flex-1 py-3 text-gray-500 font-bold">Cancel</button><button onClick={() => { onSaveNote(habit.id, note); onClose(); }} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Save</button></div></div></div>
             );
         };
 
         // --- MAIN APP ---
         const App = () => {
-            const [habits, setHabits] = useState(() => safeLoad('habit_os_data', []));
-            const [completions, setCompletions] = useState(() => safeLoad('habit_os_comps', {}));
-            const [dailyNotes, setDailyNotes] = useState(() => safeLoad('habit_os_notes', {}));
-            const [vacationMode, setVacationMode] = useState(() => safeLoad('habit_os_vacation', false));
+            const [session, setSession] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [habits, setHabits] = useState([]);
+            const [completions, setCompletions] = useState({});
+            const [dailyNotes, setDailyNotes] = useState({});
+            const [vacationMode, setVacationMode] = useState(false);
             
+            // UI State
             const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
             const [currentDate, setCurrentDate] = useState(new Date());
             const [selectedDate, setSelectedDate] = useState(new Date());
@@ -416,36 +257,71 @@
             const [centerView, setCenterView] = useState('calendar'); 
             const [sortMode, setSortMode] = useState('time'); 
             const [isReordering, setIsReordering] = useState(false);
+            const saveTimeoutRef = useRef(null);
 
-            useEffect(() => { 
-                localStorage.setItem('habit_os_data', JSON.stringify(habits)); 
-                localStorage.setItem('habit_os_comps', JSON.stringify(completions));
-                localStorage.setItem('habit_os_notes', JSON.stringify(dailyNotes));
-                localStorage.setItem('habit_os_vacation', JSON.stringify(vacationMode));
+            // 1. Session & Data Loading
+            useEffect(() => {
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    setSession(session);
+                    if (session) loadData(session.user.id);
+                    else setLoading(false);
+                });
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+                    setSession(session);
+                    if (session) loadData(session.user.id);
+                    else setLoading(false);
+                });
+                return () => subscription.unsubscribe();
+            }, []);
+
+            // 2. Load Data Logic (Cloud Priority)
+            const loadData = async (userId) => {
+                setLoading(true);
+                const { data, error } = await supabase.from('habit_data').select('data').eq('user_id', userId).maybeSingle();
+                if (data && data.data) {
+                    setHabits(data.data.habits || []);
+                    setCompletions(data.data.completions || {});
+                    setDailyNotes(data.data.dailyNotes || {});
+                    setVacationMode(data.data.vacationMode || false);
+                }
+                setLoading(false);
+            };
+
+            // 3. Debounced Cloud Save (The "Upsert" Fix)
+            const saveDataToCloud = () => {
+                if (!session) return;
+                if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                saveTimeoutRef.current = setTimeout(async () => {
+                    const payload = { habits, completions, dailyNotes, vacationMode };
+                    await supabase.from('habit_data').upsert({ 
+                        user_id: session.user.id, 
+                        data: payload,
+                        updated_at: new Date()
+                    }, { onConflict: 'user_id' });
+                    console.log('Saved to cloud');
+                }, 2000);
+            };
+
+            // Trigger Save
+            useEffect(() => {
+                if(!loading && session) saveDataToCloud();
             }, [habits, completions, dailyNotes, vacationMode]);
 
+            // Theme
             useEffect(() => { 
                 if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } 
                 else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } 
             }, [darkMode]);
 
+            if (!session && !loading) return <Auth />;
+            if (loading) return <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-900 text-indigo-600"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
+
+            // HELPER: Update State
             const updateData = (h, c, n) => { setHabits(h); setCompletions(c); setDailyNotes(n); };
-            const handleImportData = (data) => {
-                if (data.habits) setHabits(data.habits);
-                if (data.completions) setCompletions(data.completions);
-                if (data.dailyNotes) setDailyNotes(data.dailyNotes);
-                alert("Data restored successfully!");
-            };
 
             const handleSaveHabit = (habit) => {
                 const isInbox = habit.type === 'task' && !habit.targetDate;
-                const finalHabit = { 
-                    ...habit, 
-                    id: habit.id || Date.now().toString(), 
-                    isInbox,
-                    subtasks: habit.subtasks || [],
-                    order: habit.order ?? habits.length
-                };
+                const finalHabit = { ...habit, id: habit.id || Date.now().toString(), isInbox, subtasks: habit.subtasks || [], order: habit.order ?? habits.length };
                 const newHabits = habit.id && habits.some(h => h.id === habit.id) ? habits.map(h => h.id === habit.id ? finalHabit : h) : [...habits, finalHabit];
                 updateData(newHabits, completions, dailyNotes);
             };
@@ -462,11 +338,7 @@
 
             const toggleSubtask = (habitId, subIdx) => {
                 const newHabits = habits.map(h => {
-                    if (h.id === habitId) {
-                        const newS = [...h.subtasks];
-                        newS[subIdx].completed = !newS[subIdx].completed;
-                        return { ...h, subtasks: newS };
-                    }
+                    if (h.id === habitId) { const newS = [...h.subtasks]; newS[subIdx].completed = !newS[subIdx].completed; return { ...h, subtasks: newS }; }
                     return h;
                 });
                 updateData(newHabits, completions, dailyNotes);
@@ -504,7 +376,6 @@
             const year = currentDate.getFullYear(); const month = currentDate.getMonth();
             const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay();
             const selectedDateKey = formatDateKey(selectedDate); const todayKey = formatDateKey(new Date());
-
             const visibleCategories = useMemo(() => ['All', ...CATEGORIES.slice(1).filter(c => new Set(habits.map(h => h.category || 'General')).has(c))], [habits]);
 
             const todaysHabits = habits.filter(h => {
@@ -518,11 +389,8 @@
                 return (type === 'habit' && freq.includes(selectedDate.getDay()));
             });
 
-            if (sortMode === 'time') {
-                todaysHabits.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-            } else {
-                todaysHabits.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-            }
+            if (sortMode === 'time') { todaysHabits.sort((a, b) => (a.time || '').localeCompare(b.time || '')); } 
+            else { todaysHabits.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)); }
 
             const overdueCount = useMemo(() => {
                 const todayStr = formatDateKey(new Date());
@@ -534,10 +402,7 @@
             }, [habits, completions]);
 
             const handlePointerDown = (habit) => {
-                window.longPressTimer = setTimeout(() => {
-                    setDetailHabit(habit);
-                    window.isLongPress = true;
-                }, 800); 
+                window.longPressTimer = setTimeout(() => { setDetailHabit(habit); window.isLongPress = true; }, 800); 
             };
             const handlePointerUp = () => {
                 clearTimeout(window.longPressTimer);
@@ -549,7 +414,7 @@
                     {/* LEFT SIDEBAR */}
                     <div className="w-80 bg-white dark:bg-dark-800 border-r border-gray-200 dark:border-dark-700 hidden md:flex flex-col z-20 shadow-lg">
                         <div className="p-6 border-b border-gray-100 dark:border-dark-700 flex items-center justify-between">
-                            <div className="flex items-center gap-3"><div className="bg-indigo-600 text-white p-2 rounded-lg"><Trophy size={20} /></div><div><h1 className="font-bold text-lg leading-tight dark:text-white">Habit OS</h1><p className="text-xs text-indigo-500 font-medium">Local Pro</p></div></div>
+                            <div className="flex items-center gap-3"><div className="bg-indigo-600 text-white p-2 rounded-lg"><Trophy size={20} /></div><div><h1 className="font-bold text-lg leading-tight dark:text-white">Habit OS</h1><p className="text-xs text-indigo-500 font-medium">Cloud Pro</p></div></div>
                             <button onClick={() => setIsSettingsOpen(true)} className="text-gray-400 hover:text-indigo-500"><Settings size={20}/></button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
@@ -581,12 +446,10 @@
                                     <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-1 hover:bg-white dark:hover:bg-dark-700 rounded shadow-sm"><ChevronRight size={16}/></button>
                                 </div>
                             </div>
-                            
                             <div className="flex bg-gray-100 dark:bg-dark-800 rounded-lg p-1">
                                 <button onClick={() => setCenterView('calendar')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${centerView === 'calendar' ? 'bg-white dark:bg-dark-700 shadow text-indigo-600' : 'text-gray-400'}`}><CalendarIcon size={14} className="inline mr-1"/>Calendar</button>
                                 <button onClick={() => setCenterView('inbox')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${centerView === 'inbox' ? 'bg-white dark:bg-dark-700 shadow text-indigo-600' : 'text-gray-400'}`}><InboxIcon size={14} className="inline mr-1"/>Inbox ({habits.filter(h=>h.isInbox).length})</button>
                             </div>
-
                             <div className="flex items-center gap-3">
                                 <button onClick={() => setDarkMode(!darkMode)} className="p-2 text-gray-400 hover:text-indigo-500 transition-colors">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
                                 <button onClick={() => {const now=new Date(); setCurrentDate(now); setSelectedDate(now);}} className="text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full">Today</button>
@@ -596,9 +459,7 @@
                         <div className="flex-1 overflow-auto min-h-0 relative">
                             {centerView === 'calendar' ? (
                                 <div className="h-full flex flex-col">
-                                    <div className="grid grid-cols-7 border-b border-gray-100 dark:border-dark-700 sticky top-0 bg-white/95 dark:bg-dark-900/95 z-20 text-center py-2 text-xs font-bold text-gray-400 uppercase">
-                                        {DAYS_OF_WEEK.map((d, i) => <div key={i}>{d}</div>)}
-                                    </div>
+                                    <div className="grid grid-cols-7 border-b border-gray-100 dark:border-dark-700 sticky top-0 bg-white/95 dark:bg-dark-900/95 z-20 text-center py-2 text-xs font-bold text-gray-400 uppercase">{DAYS_OF_WEEK.map((d, i) => <div key={i}>{d}</div>)}</div>
                                     <div className="grid grid-cols-7 auto-rows-fr h-full">
                                         {(() => {
                                             const days = [];
@@ -606,19 +467,8 @@
                                             for(let d=1; d<=daysInMonth; d++) {
                                                 const date = new Date(year, month, d); const k = formatDateKey(date);
                                                 const dayData = completions[k] || []; const isToday = k === todayKey; const isSelected = k === selectedDateKey;
-                                                const dots = habits.filter(h => {
-                                                    if (h.isInbox) return false;
-                                                    const type = h.type; 
-                                                    if (type==='birthday' && isSameDayMonth(new Date(h.targetDate), date)) return true;
-                                                    if ((type==='task'||type==='event') && h.targetDate === k) return true;
-                                                    return false;
-                                                }).map(h => h.type==='birthday'?'bg-pink-400':h.type==='event'?'bg-blue-400':'bg-gray-400').slice(0,3);
-                                                days.push(
-                                                    <div key={d} onClick={() => setSelectedDate(date)} className={`h-16 md:h-24 p-1 md:p-2 border-b border-r border-gray-100 dark:border-dark-700 cursor-pointer relative transition-colors ${isSelected ? 'bg-indigo-50/60 dark:bg-indigo-900/20' : 'hover:bg-gray-50 dark:hover:bg-dark-800'}`}>
-                                                        <div className="flex justify-between items-center"><span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${isToday ? 'bg-indigo-600 text-white' : isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>{d}</span>{dayData.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>}</div>
-                                                        <div className="flex gap-1 mt-1 justify-end">{dots.map((col, idx) => <div key={idx} className={`w-1.5 h-1.5 rounded-full ${col}`}></div>)}</div>
-                                                    </div>
-                                                );
+                                                const dots = habits.filter(h => { if (h.isInbox) return false; const type = h.type; if (type==='birthday' && isSameDayMonth(new Date(h.targetDate), date)) return true; if ((type==='task'||type==='event') && h.targetDate === k) return true; return false; }).map(h => h.type==='birthday'?'bg-pink-400':h.type==='event'?'bg-blue-400':'bg-gray-400').slice(0,3);
+                                                days.push(<div key={d} onClick={() => setSelectedDate(date)} className={`h-16 md:h-24 p-1 md:p-2 border-b border-r border-gray-100 dark:border-dark-700 cursor-pointer relative transition-colors ${isSelected ? 'bg-indigo-50/60 dark:bg-indigo-900/20' : 'hover:bg-gray-50 dark:hover:bg-dark-800'}`}><div className="flex justify-between items-center"><span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${isToday ? 'bg-indigo-600 text-white' : isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>{d}</span>{dayData.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>}</div><div className="flex gap-1 mt-1 justify-end">{dots.map((col, idx) => <div key={idx} className={`w-1.5 h-1.5 rounded-full ${col}`}></div>)}</div></div>);
                                             }
                                             return days;
                                         })()}
@@ -626,33 +476,14 @@
                                 </div>
                             ) : (
                                 <div className="p-8 max-w-2xl mx-auto space-y-4 animate-fade-in">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h2 className="text-2xl font-bold dark:text-white">Unscheduled Tasks</h2>
-                                        <span className="text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded-full font-bold">{habits.filter(h=>h.isInbox).length} Items</span>
-                                    </div>
+                                    <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold dark:text-white">Unscheduled Tasks</h2><span className="text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded-full font-bold">{habits.filter(h=>h.isInbox).length} Items</span></div>
                                     {habits.filter(h => h.isInbox).map(h => (
                                         <div key={h.id} className="bg-white dark:bg-dark-800 p-4 rounded-xl border border-gray-200 dark:border-dark-700 flex justify-between items-center group shadow-sm hover:shadow-md transition-all">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-lg bg-gray-50 dark:bg-dark-700 flex items-center justify-center text-2xl">{h.icon}</div>
-                                                <div>
-                                                    <p className="font-bold text-lg dark:text-gray-200">{h.name}</p>
-                                                    <p className="text-xs text-gray-400 flex items-center gap-2">
-                                                        {h.subtasks?.length > 0 ? <span>{h.subtasks.filter(s=>s.completed).length}/{h.subtasks.length} Subtasks</span> : 'No subtasks'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <button onClick={() => { setEditingHabit(h); setIsModalOpen(true); }} className="px-4 py-2 bg-indigo-50 dark:bg-dark-700 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold hover:bg-indigo-100 dark:hover:bg-dark-600 transition-colors">
-                                                Schedule ->
-                                            </button>
+                                            <div className="flex items-center gap-4"><div className="w-12 h-12 rounded-lg bg-gray-50 dark:bg-dark-700 flex items-center justify-center text-2xl">{h.icon}</div><div><p className="font-bold text-lg dark:text-gray-200">{h.name}</p><p className="text-xs text-gray-400 flex items-center gap-2">{h.subtasks?.length > 0 ? <span>{h.subtasks.filter(s=>s.completed).length}/{h.subtasks.length} Subtasks</span> : 'No subtasks'}</p></div></div>
+                                            <button onClick={() => { setEditingHabit(h); setIsModalOpen(true); }} className="px-4 py-2 bg-indigo-50 dark:bg-dark-700 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold hover:bg-indigo-100 dark:hover:bg-dark-600 transition-colors">Schedule -></button>
                                         </div>
                                     ))}
-                                    {habits.filter(h => h.isInbox).length === 0 && (
-                                        <div className="text-center py-20 opacity-50">
-                                            <div className="text-6xl mb-4">🎉</div>
-                                            <h3 className="text-xl font-bold dark:text-white">Inbox Zero</h3>
-                                            <p className="text-sm text-gray-400">Everything is scheduled.</p>
-                                        </div>
-                                    )}
+                                    {habits.filter(h => h.isInbox).length === 0 && (<div className="text-center py-20 opacity-50"><div className="text-6xl mb-4">🎉</div><h3 className="text-xl font-bold dark:text-white">Inbox Zero</h3><p className="text-sm text-gray-400">Everything is scheduled.</p></div>)}
                                 </div>
                             )}
                         </div>
@@ -676,46 +507,17 @@
                     {/* RIGHT SIDEBAR (Agenda) */}
                     <div className="w-full md:w-96 bg-gray-50 dark:bg-dark-800/50 border-t md:border-t-0 md:border-l border-gray-200 dark:border-dark-700 flex flex-col z-20 shadow-xl h-[50%] md:h-full order-2">
                         <div className="glass px-6 py-4 md:p-6 border-b border-gray-200/50 dark:border-dark-700 flex flex-col gap-3 sticky top-0 z-30">
-                            {/* OVERDUE ROLLOVER BUTTON */}
-                            {overdueCount > 0 && (
-                                <button onClick={rolloverOverdue} className="w-full mb-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 animate-pulse-slow">
-                                    <Refresh size={14}/> Move {overdueCount} Overdue Tasks to Today
-                                </button>
-                            )}
-
+                            {overdueCount > 0 && (<button onClick={rolloverOverdue} className="w-full mb-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 animate-pulse-slow"><Refresh size={14}/> Move {overdueCount} Overdue Tasks to Today</button>)}
                             <div className="flex justify-between items-center">
                                 <div><h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}</h2><p className="text-gray-500 dark:text-gray-400 text-xs md:text-sm">{selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p></div>
                                 <div className="flex items-center gap-2">
-                                    <button 
-                                        onClick={() => {
-                                            const nextMode = sortMode === 'time' ? 'manual' : 'time';
-                                            setSortMode(nextMode);
-                                            setIsReordering(nextMode === 'manual'); 
-                                        }} 
-                                        className={`p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold ${sortMode === 'manual' ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-200' : 'bg-white dark:bg-dark-700 text-gray-500'}`} 
-                                        title="Toggle Sort Mode"
-                                    >
-                                        {sortMode === 'time' ? <><Clock size={16}/> Auto</> : <><Sort size={16}/> Manual</>}
-                                    </button>
-
-                                    {/* HIDE ARROWS TOGGLE */}
-                                    {sortMode === 'manual' && (
-                                        <button 
-                                            onClick={() => setIsReordering(!isReordering)}
-                                            className={`p-2 rounded-lg transition-colors text-xs font-bold flex items-center gap-1 ${isReordering ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 ring-2 ring-green-500' : 'bg-white dark:bg-dark-700 text-gray-400'}`}
-                                            title={isReordering ? "Hide Arrows" : "Show Arrows"}
-                                        >
-                                            {isReordering ? <Check size={16}/> : <Edit2 size={16}/>}
-                                        </button>
-                                    )}
-
+                                    <button onClick={() => { const nextMode = sortMode === 'time' ? 'manual' : 'time'; setSortMode(nextMode); setIsReordering(nextMode === 'manual'); }} className={`p-2 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold ${sortMode === 'manual' ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-200' : 'bg-white dark:bg-dark-700 text-gray-500'}`} title="Toggle Sort Mode">{sortMode === 'time' ? <><Clock size={16}/> Auto</> : <><Sort size={16}/> Manual</>}</button>
+                                    {sortMode === 'manual' && (<button onClick={() => setIsReordering(!isReordering)} className={`p-2 rounded-lg transition-colors text-xs font-bold flex items-center gap-1 ${isReordering ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 ring-2 ring-green-500' : 'bg-white dark:bg-dark-700 text-gray-400'}`} title={isReordering ? "Hide Arrows" : "Show Arrows"}>{isReordering ? <Check size={16}/> : <Edit2 size={16}/>}</button>)}
                                     <div className="md:hidden"><button onClick={() => { setEditingHabit(null); setIsModalOpen(true); }} className="bg-indigo-600 text-white p-2 rounded-lg shadow-sm"><Plus size={18} /></button></div>
                                 </div>
                             </div>
                             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                                {visibleCategories.map(c => (
-                                    <button key={c} onClick={() => setSelectedCategory(c)} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap ${selectedCategory === c ? 'bg-gray-800 text-white dark:bg-white dark:text-black' : 'bg-white dark:bg-dark-700 text-gray-500 border border-gray-100 dark:border-dark-600'}`}>{c}</button>
-                                ))}
+                                {visibleCategories.map(c => (<button key={c} onClick={() => setSelectedCategory(c)} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap ${selectedCategory === c ? 'bg-gray-800 text-white dark:bg-white dark:text-black' : 'bg-white dark:bg-dark-700 text-gray-500 border border-gray-100 dark:border-dark-600'}`}>{c}</button>))}
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">
@@ -724,55 +526,13 @@
                                     const isDone = completions[selectedDateKey]?.includes(h.id);
                                     const type = h.type; const isHeroic = h.difficulty === 'heroic';
                                     return (
-                                        <div 
-                                            key={h.id} 
-                                            onPointerDown={() => handlePointerDown(h)}
-                                            onPointerUp={handlePointerUp}
-                                            onPointerLeave={handlePointerUp}
-                                            className={`relative group flex flex-col p-3.5 rounded-2xl border transition-all duration-200 no-select ${isHeroic && !isDone ? 'border-yellow-400/50 bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-500/30' : type === 'birthday' ? 'border-pink-200 bg-pink-50 dark:bg-pink-900/10' : isDone ? 'bg-white/50 dark:bg-dark-700/50 border-transparent opacity-70' : 'bg-white dark:bg-dark-700 border-gray-100 dark:border-dark-600 shadow-sm'}`}
-                                        >
+                                        <div key={h.id} onPointerDown={() => handlePointerDown(h)} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp} className={`relative group flex flex-col p-3.5 rounded-2xl border transition-all duration-200 no-select ${isHeroic && !isDone ? 'border-yellow-400/50 bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-500/30' : type === 'birthday' ? 'border-pink-200 bg-pink-50 dark:bg-pink-900/10' : isDone ? 'bg-white/50 dark:bg-dark-700/50 border-transparent opacity-70' : 'bg-white dark:bg-dark-700 border-gray-100 dark:border-dark-600 shadow-sm'}`}>
                                             <div className="flex items-center cursor-pointer">
-                                                
-                                                {/* HOVER ARROWS: Visible if Reordering OR (Manual Mode + Hover) */}
-                                                {isReordering && (
-                                                    <div className="flex flex-col mr-2 gap-1 animate-fade-in" onPointerDown={(e) => e.stopPropagation()}>
-                                                        <button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, -1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-indigo-600"><ArrowUp size={12}/></button>
-                                                        <button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, 1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-indigo-600"><ArrowDown size={12}/></button>
-                                                    </div>
-                                                )}
-                                                
-                                                <div onClick={() => toggleHabit(h.id, selectedDateKey)} className={`w-6 h-6 rounded-lg mr-3 flex items-center justify-center transition-colors ${isDone ? 'bg-indigo-500 text-white' : (type === 'birthday' ? 'bg-pink-100 text-pink-500' : type === 'event' ? 'bg-blue-100 text-blue-500' : isHeroic ? 'bg-yellow-100 text-yellow-500' : 'bg-gray-100 dark:bg-dark-800 text-transparent')}`}>
-                                                    {isHeroic && !isDone ? <Star size={14} fill="currentColor" /> : type === 'birthday' ? <Cake size={14} /> : type === 'event' ? <CalendarIcon size={14} /> : <Check size={14} strokeWidth={3} />}
-                                                </div>
-                                                
-                                                <div className="flex-1 min-w-0" onClick={() => { if(!window.isLongPress && !isReordering) toggleHabit(h.id, selectedDateKey); }}>
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2"><span className="text-lg">{h.icon}</span><span className={`text-sm font-bold truncate ${isDone ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>{h.name}</span></div>
-                                                        <div className="flex items-center gap-1">
-                                                            {!isDone && (type === 'habit' || type === 'task') && h.useTimer && <button onClick={(e) => { e.stopPropagation(); setActiveFocusHabit(h); }} className="p-1 text-gray-300 hover:text-indigo-500"><Play size={14} fill="currentColor" /></button>}
-                                                            <button onClick={(e) => { e.stopPropagation(); setDetailHabit(h); }} className="p-1 text-gray-300 hover:text-indigo-500 md:hidden"><FileText size={12}/></button>
-                                                            <button onClick={(e) => { e.stopPropagation(); setEditingHabit(h); setIsModalOpen(true); }} className="p-1 text-gray-300 hover:text-indigo-500"><Edit2 size={12} /></button>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                        {h.time && <span className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded"><Clock size={10} /> {h.time}</span>}
-                                                        {type === 'task' && <span className="text-[9px] font-bold bg-gray-100 dark:bg-dark-600 text-gray-500 px-1.5 py-0.5 rounded uppercase">Task</span>}
-                                                        {dailyNotes[`${h.id}_${selectedDateKey}`] && <span className="text-[9px] font-bold bg-yellow-100 text-yellow-600 px-1.5 py-0.5 rounded uppercase">Note</span>}
-                                                    </div>
-                                                </div>
+                                                {isReordering && (<div className="flex flex-col mr-2 gap-1 animate-fade-in" onPointerDown={(e) => e.stopPropagation()}><button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, -1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-indigo-600"><ArrowUp size={12}/></button><button onClick={(e)=>{e.stopPropagation(); moveHabit(h.id, 1)}} className="p-1 hover:bg-gray-200 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-indigo-600"><ArrowDown size={12}/></button></div>)}
+                                                <div onClick={() => toggleHabit(h.id, selectedDateKey)} className={`w-6 h-6 rounded-lg mr-3 flex items-center justify-center transition-colors ${isDone ? 'bg-indigo-500 text-white' : (type === 'birthday' ? 'bg-pink-100 text-pink-500' : type === 'event' ? 'bg-blue-100 text-blue-500' : isHeroic ? 'bg-yellow-100 text-yellow-500' : 'bg-gray-100 dark:bg-dark-800 text-transparent')}`}>{isHeroic && !isDone ? <Star size={14} fill="currentColor" /> : type === 'birthday' ? <Cake size={14} /> : type === 'event' ? <CalendarIcon size={14} /> : <Check size={14} strokeWidth={3} />}</div>
+                                                <div className="flex-1 min-w-0" onClick={() => { if(!window.isLongPress && !isReordering) toggleHabit(h.id, selectedDateKey); }}><div className="flex items-center justify-between"><div className="flex items-center gap-2"><span className="text-lg">{h.icon}</span><span className={`text-sm font-bold truncate ${isDone ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}>{h.name}</span></div><div className="flex items-center gap-1">{!isDone && (type === 'habit' || type === 'task') && h.useTimer && <button onClick={(e) => { e.stopPropagation(); setActiveFocusHabit(h); }} className="p-1 text-gray-300 hover:text-indigo-500"><Play size={14} fill="currentColor" /></button>}<button onClick={(e) => { e.stopPropagation(); setDetailHabit(h); }} className="p-1 text-gray-300 hover:text-indigo-500 md:hidden"><FileText size={12}/></button><button onClick={(e) => { e.stopPropagation(); setEditingHabit(h); setIsModalOpen(true); }} className="p-1 text-gray-300 hover:text-indigo-500"><Edit2 size={12} /></button></div></div><div className="flex items-center gap-2 mt-0.5">{h.time && <span className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded"><Clock size={10} /> {h.time}</span>}{type === 'task' && <span className="text-[9px] font-bold bg-gray-100 dark:bg-dark-600 text-gray-500 px-1.5 py-0.5 rounded uppercase">Task</span>}{dailyNotes[`${h.id}_${selectedDateKey}`] && <span className="text-[9px] font-bold bg-yellow-100 text-yellow-600 px-1.5 py-0.5 rounded uppercase">Note</span>}</div></div>
                                             </div>
-                                            {h.subtasks && h.subtasks.length > 0 && (
-                                                <div className="mt-3 pl-9 space-y-1">
-                                                    {h.subtasks.map((st, idx) => (
-                                                        <div key={idx} className="flex items-center gap-2 cursor-pointer" onClick={(e) => {e.stopPropagation(); toggleSubtask(h.id, idx)}}>
-                                                            <div className={`w-3 h-3 rounded border flex items-center justify-center ${st.completed ? 'bg-indigo-400 border-indigo-400' : 'border-gray-300'}`}>
-                                                                {st.completed && <Check size={8} className="text-white"/>}
-                                                            </div>
-                                                            <span className={`text-xs ${st.completed ? 'line-through text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>{st.text}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
+                                            {h.subtasks && h.subtasks.length > 0 && (<div className="mt-3 pl-9 space-y-1">{h.subtasks.map((st, idx) => (<div key={idx} className="flex items-center gap-2 cursor-pointer" onClick={(e) => {e.stopPropagation(); toggleSubtask(h.id, idx)}}><div className={`w-3 h-3 rounded border flex items-center justify-center ${st.completed ? 'bg-indigo-400 border-indigo-400' : 'border-gray-300'}`}>{st.completed && <Check size={8} className="text-white"/>}</div><span className={`text-xs ${st.completed ? 'line-through text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>{st.text}</span></div>))}</div>)}
                                         </div>
                                     );
                                 })}</div>
@@ -783,7 +543,7 @@
                     {/* MODALS */}
                     <HabitModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveHabit} onDelete={handleDeleteHabit} initialData={editingHabit} />
                     <NoteModal isOpen={!!detailHabit} onClose={() => setDetailHabit(null)} habit={detailHabit} notes={detailHabit ? dailyNotes[`${detailHabit.id}_${selectedDateKey}`] : ''} onSaveNote={handleSaveNote} />
-                    <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} data={{ habits, completions, dailyNotes, vacationMode }} onImport={handleImportData} vacationMode={vacationMode} setVacationMode={setVacationMode} />
+                    <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} session={session} vacationMode={vacationMode} setVacationMode={setVacationMode} data={{ habits, completions, dailyNotes, vacationMode }} />
                     {activeFocusHabit && <FocusTimer habit={activeFocusHabit} onClose={() => setActiveFocusHabit(null)} onComplete={() => { toggleHabit(activeFocusHabit.id, selectedDateKey); setActiveFocusHabit(null); }} />}
                 </div>
             );
