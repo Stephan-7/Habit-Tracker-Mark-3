@@ -16,7 +16,8 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
         tailwind.config = {
@@ -53,8 +54,7 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrYW1jdGllZm5ieW5wZmtjcnR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0MDk3MzcsImV4cCI6MjA4NTk4NTczN30.wm3orZAzxyZQ-gKgPxiQ59xKQJMEmHSVOVdv4ojJyAE';
         // ----------------------------
 
-        // GLOBAL SUPABASE CLIENT
-        // We initialize it inside the component to ensure library is loaded
+        // GLOBAL SUPABASE CLIENT (Initialized safely)
         let supabase = null;
 
         // --- ICONS ---
@@ -117,13 +117,17 @@
         };
 
         // --- LOGIN COMPONENT ---
-        const Auth = ({ errorMsg }) => {
+        const Auth = ({ errorMsg, onRetry }) => {
             const [email, setEmail] = useState('');
             const [loading, setLoading] = useState(false);
             
             const handleLogin = async (e) => {
                 e.preventDefault();
-                if (!supabase) { alert("Supabase is loading... try again in 1 second."); return; }
+                if (!supabase) { 
+                    alert("Initializing cloud connection... please wait.");
+                    if(onRetry) onRetry(); 
+                    return; 
+                }
                 setLoading(true);
                 const { error } = await supabase.auth.signInWithOtp({ 
                     email, 
@@ -144,8 +148,9 @@
                         <p className="text-gray-500 text-center mb-8 text-sm">Sign in to sync your productivity.</p>
                         
                         {errorMsg && (
-                            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs mb-4 border border-red-200">
-                                <strong>Setup Error:</strong> {errorMsg}
+                            <div className="bg-orange-50 text-orange-600 p-3 rounded-lg text-xs mb-4 border border-orange-200">
+                                <strong>Connecting...</strong> {errorMsg}
+                                <button onClick={onRetry} className="mt-2 w-full py-1 bg-white border border-orange-200 rounded text-orange-700 font-bold hover:bg-orange-50">Retry Connection</button>
                             </div>
                         )}
 
@@ -183,7 +188,6 @@
         };
 
         // --- SUB COMPONENTS (Heatmap, Charts, Timer) ---
-        // (Identical to previous, keeping structure simple)
         const YearHeatmap = ({ completions, habits }) => {
             const heatmapRef = useRef(null);
             useEffect(() => { if (heatmapRef.current) { const scrollRatio = new Date().getMonth() / 12; heatmapRef.current.scrollLeft = heatmapRef.current.scrollWidth * scrollRatio; } }, []);
@@ -252,6 +256,9 @@
             const [session, setSession] = useState(null);
             const [loading, setLoading] = useState(true);
             const [configError, setConfigError] = useState(null);
+            const [retryCount, setRetryCount] = useState(0);
+            
+            // App State
             const [habits, setHabits] = useState([]);
             const [completions, setCompletions] = useState({});
             const [dailyNotes, setDailyNotes] = useState({});
@@ -273,44 +280,58 @@
             const [isReordering, setIsReordering] = useState(false);
             const saveTimeoutRef = useRef(null);
 
-            // 1. SAFE INIT & AUTH CHECK
+            // 1. SMART INITIALIZATION (With Retries)
             useEffect(() => {
-                const initSupabase = async () => {
-                    try {
-                        if (SUPABASE_URL.includes('PASTE') || SUPABASE_KEY.includes('PASTE')) {
-                            throw new Error("Supabase Keys missing. Please edit the file and paste them.");
-                        }
-                        
-                        // WAIT for Supabase library to load
-                        if (!window.supabase || !window.supabase.createClient) {
-                            throw new Error("Supabase library not loaded. Check your internet connection.");
-                        }
+                let attempts = 0;
+                const maxAttempts = 10; // Wait up to 5 seconds (10 * 500ms)
 
-                        // Initialize Global Client
-                        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                        
-                        // Check Session
-                        const { data: { session } } = await supabase.auth.getSession();
-                        setSession(session);
-                        if (session) await loadData(session.user.id);
-                        else setLoading(false);
-
-                        // Auth Listener
-                        supabase.auth.onAuthStateChange(async (_event, session) => {
+                const tryInit = async () => {
+                    if (window.supabase && window.supabase.createClient) {
+                        // Success: Library found!
+                        try {
+                            if (SUPABASE_URL.includes('PASTE') || SUPABASE_KEY.includes('PASTE')) {
+                                throw new Error("Supabase Keys missing. Please edit the file.");
+                            }
+                            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                            
+                            // Auth Check
+                            const { data: { session } } = await supabase.auth.getSession();
                             setSession(session);
                             if (session) await loadData(session.user.id);
                             else setLoading(false);
-                        });
 
-                    } catch (e) {
-                        console.error("Supabase Init Error:", e);
-                        setConfigError(e.message);
-                        setLoading(false);
+                            // Listen for auth changes
+                            supabase.auth.onAuthStateChange(async (_event, session) => {
+                                setSession(session);
+                                if (session) await loadData(session.user.id);
+                                else setLoading(false);
+                            });
+                            setConfigError(null); // Clear errors
+                        } catch (e) {
+                            setConfigError(e.message);
+                            setLoading(false);
+                        }
+                    } else {
+                        // Failure: Library not found yet
+                        attempts++;
+                        if (attempts < maxAttempts) {
+                            console.log(`Supabase lib not ready, retrying (${attempts}/${maxAttempts})...`);
+                            setTimeout(tryInit, 500); // Retry in 500ms
+                        } else {
+                            setConfigError("Supabase library failed to load. Check internet connection.");
+                            setLoading(false);
+                        }
                     }
                 };
-                // Small delay to ensure script tag loads
-                setTimeout(initSupabase, 500);
-            }, []);
+
+                tryInit();
+            }, [retryCount]); // Re-run if user clicks "Retry"
+
+            const handleRetry = () => {
+                setLoading(true);
+                setConfigError(null);
+                setRetryCount(c => c + 1);
+            };
 
             // 2. Load Data
             const loadData = async (userId) => {
@@ -346,7 +367,7 @@
             useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
 
             // RENDERING
-            if (configError) return <Auth errorMsg={configError} />;
+            if (configError) return <Auth errorMsg={configError} onRetry={handleRetry} />;
             if (!session && !loading) return <Auth />;
             if (loading) return <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-900 text-indigo-600"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
 
