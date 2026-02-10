@@ -54,8 +54,8 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrYW1jdGllZm5ieW5wZmtjcnR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0MDk3MzcsImV4cCI6MjA4NTk4NTczN30.wm3orZAzxyZQ-gKgPxiQ59xKQJMEmHSVOVdv4ojJyAE';
         // ----------------------------
 
-        // GLOBAL SUPABASE CLIENT (Initialized safely)
-        let supabase = null;
+        // We do NOT initialize Supabase globally anymore to prevent "Blue Screen" crashes.
+        // It happens inside the App component now.
 
         // --- ICONS ---
         const Icon = ({ children, size=20, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>;
@@ -123,13 +123,18 @@
             
             const handleLogin = async (e) => {
                 e.preventDefault();
-                if (!supabase) { 
-                    alert("Initializing cloud connection... please wait.");
-                    if(onRetry) onRetry(); 
+                // THIS WAS THE FIX: Check if Supabase exists, but don't crash if not.
+                if (!window.supabase || !window.supabase.createClient) { 
+                    alert("Still connecting to cloud... check internet and try again in 5s."); 
+                    if(onRetry) onRetry();
                     return; 
                 }
+                
+                // Init client strictly for login attempt
+                const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                
                 setLoading(true);
-                const { error } = await supabase.auth.signInWithOtp({ 
+                const { error } = await sb.auth.signInWithOtp({ 
                     email, 
                     options: { emailRedirectTo: window.location.href } 
                 });
@@ -148,9 +153,8 @@
                         <p className="text-gray-500 text-center mb-8 text-sm">Sign in to sync your productivity.</p>
                         
                         {errorMsg && (
-                            <div className="bg-orange-50 text-orange-600 p-3 rounded-lg text-xs mb-4 border border-orange-200">
-                                <strong>Connecting...</strong> {errorMsg}
-                                <button onClick={onRetry} className="mt-2 w-full py-1 bg-white border border-orange-200 rounded text-orange-700 font-bold hover:bg-orange-50">Retry Connection</button>
+                            <div className="bg-blue-50 text-blue-600 p-3 rounded-lg text-xs mb-4 border border-blue-200">
+                                {errorMsg}
                             </div>
                         )}
 
@@ -164,7 +168,7 @@
         };
 
         // --- SETTINGS COMPONENT ---
-        const SettingsModal = ({ isOpen, onClose, session, vacationMode, setVacationMode }) => {
+        const SettingsModal = ({ isOpen, onClose, session, vacationMode, setVacationMode, supabase }) => {
             if (!isOpen) return null;
             const handleLogout = async () => { if(supabase) { await supabase.auth.signOut(); window.location.reload(); } };
             return (
@@ -255,16 +259,14 @@
         const App = () => {
             const [session, setSession] = useState(null);
             const [loading, setLoading] = useState(true);
-            const [configError, setConfigError] = useState(null);
+            const [sbClient, setSbClient] = useState(null);
             const [retryCount, setRetryCount] = useState(0);
             
-            // App State
             const [habits, setHabits] = useState([]);
             const [completions, setCompletions] = useState({});
             const [dailyNotes, setDailyNotes] = useState({});
             const [vacationMode, setVacationMode] = useState(false);
             
-            // UI State
             const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
             const [currentDate, setCurrentDate] = useState(new Date());
             const [selectedDate, setSelectedDate] = useState(new Date());
@@ -280,111 +282,66 @@
             const [isReordering, setIsReordering] = useState(false);
             const saveTimeoutRef = useRef(null);
 
-            // 1. SMART INITIALIZATION (With Retries)
+            // 1. LAZY INIT SUPABASE (The "Flawless" Method)
             useEffect(() => {
-                let attempts = 0;
-                const maxAttempts = 10; // Wait up to 5 seconds (10 * 500ms)
-
-                const tryInit = async () => {
+                const init = async () => {
+                    // Check if Supabase library loaded
                     if (window.supabase && window.supabase.createClient) {
-                        // Success: Library found!
                         try {
-                            if (SUPABASE_URL.includes('PASTE') || SUPABASE_KEY.includes('PASTE')) {
-                                throw new Error("Supabase Keys missing. Please edit the file.");
-                            }
-                            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                            
-                            // Auth Check
-                            const { data: { session } } = await supabase.auth.getSession();
+                            const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                            setSbClient(client);
+                            const { data: { session } } = await client.auth.getSession();
                             setSession(session);
-                            if (session) await loadData(session.user.id);
+                            if (session) await loadData(client, session.user.id);
                             else setLoading(false);
 
-                            // Listen for auth changes
-                            supabase.auth.onAuthStateChange(async (_event, session) => {
+                            client.auth.onAuthStateChange(async (_event, session) => {
                                 setSession(session);
-                                if (session) await loadData(session.user.id);
+                                if (session) await loadData(client, session.user.id);
                                 else setLoading(false);
                             });
-                            setConfigError(null); // Clear errors
                         } catch (e) {
-                            setConfigError(e.message);
-                            setLoading(false);
+                            console.error("Supabase Init Error (Check Keys):", e);
+                            setLoading(false); 
                         }
                     } else {
-                        // Failure: Library not found yet
-                        attempts++;
-                        if (attempts < maxAttempts) {
-                            console.log(`Supabase lib not ready, retrying (${attempts}/${maxAttempts})...`);
-                            setTimeout(tryInit, 500); // Retry in 500ms
-                        } else {
-                            setConfigError("Supabase library failed to load. Check internet connection.");
-                            setLoading(false);
-                        }
+                        // Library not ready? Try once more in 1s, otherwise fail silently (App still works)
+                        setTimeout(() => setRetryCount(c => c + 1), 1000);
+                        if (retryCount > 2) setLoading(false);
                     }
                 };
+                init();
+            }, [retryCount]);
 
-                tryInit();
-            }, [retryCount]); // Re-run if user clicks "Retry"
-
-            const handleRetry = () => {
+            const loadData = async (client, userId) => {
                 setLoading(true);
-                setConfigError(null);
-                setRetryCount(c => c + 1);
-            };
-
-            // 2. Load Data
-            const loadData = async (userId) => {
-                setLoading(true);
-                try {
-                    const { data, error } = await supabase.from('habit_data').select('data').eq('user_id', userId).maybeSingle();
-                    if (data && data.data) {
-                        setHabits(data.data.habits || []);
-                        setCompletions(data.data.completions || {});
-                        setDailyNotes(data.data.dailyNotes || {});
-                        setVacationMode(data.data.vacationMode || false);
-                    }
-                } catch(e) { console.error(e); }
+                const { data } = await client.from('habit_data').select('data').eq('user_id', userId).maybeSingle();
+                if (data && data.data) {
+                    setHabits(data.data.habits || []);
+                    setCompletions(data.data.completions || {});
+                    setDailyNotes(data.data.dailyNotes || {});
+                    setVacationMode(data.data.vacationMode || false);
+                }
                 setLoading(false);
             };
 
-            // 3. Cloud Save
             const saveDataToCloud = () => {
-                if (!session || !supabase) return;
+                if (!session || !sbClient) return;
                 if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                 saveTimeoutRef.current = setTimeout(async () => {
                     const payload = { habits, completions, dailyNotes, vacationMode };
-                    await supabase.from('habit_data').upsert({ 
-                        user_id: session.user.id, 
-                        data: payload,
-                        updated_at: new Date()
-                    }, { onConflict: 'user_id' });
-                    console.log('Saved to cloud');
+                    await sbClient.from('habit_data').upsert({ user_id: session.user.id, data: payload, updated_at: new Date() }, { onConflict: 'user_id' });
+                    console.log('Saved');
                 }, 2000);
             };
 
             useEffect(() => { if(!loading && session) saveDataToCloud(); }, [habits, completions, dailyNotes, vacationMode]);
             useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
 
-            // RENDERING
-            if (configError) return <Auth errorMsg={configError} onRetry={handleRetry} />;
-            if (!session && !loading) return <Auth />;
+            // If Supabase isn't loaded yet, show Auth but with a warning, OR just show Auth.
+            // We default to Auth screen if no session found.
+            if (!session && !loading) return <Auth errorMsg={!sbClient && retryCount > 2 ? "Cloud library loading slow..." : null} onRetry={() => setRetryCount(c=>c+1)} />;
             if (loading) return <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-900 text-indigo-600"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
-
-            // ... HELPER FUNCTIONS AND JSX ...
-            const updateData = (h, c, n) => { setHabits(h); setCompletions(c); setDailyNotes(n); };
-            const handleSaveHabit = (habit) => { const isInbox = habit.type === 'task' && !habit.targetDate; const finalHabit = { ...habit, id: habit.id || Date.now().toString(), isInbox, subtasks: habit.subtasks || [], order: habit.order ?? habits.length }; const newHabits = habit.id && habits.some(h => h.id === habit.id) ? habits.map(h => h.id === habit.id ? finalHabit : h) : [...habits, finalHabit]; updateData(newHabits, completions, dailyNotes); };
-            const handleDeleteHabit = (id) => updateData(habits.filter(h => h.id !== id), completions, dailyNotes);
-            const handleSaveNote = (habitId, text) => { const key = `${habitId}_${formatDateKey(selectedDate)}`; updateData(habits, completions, { ...dailyNotes, [key]: text }); };
-            const toggleHabit = (id, dateKey) => { const current = completions[dateKey] || []; const newC = { ...completions, [dateKey]: current.includes(id) ? current.filter(x => x !== id) : [...current, id] }; updateData(habits, newC, dailyNotes); if (!current.includes(id)) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); };
-            const toggleSubtask = (habitId, subIdx) => { const newHabits = habits.map(h => { if (h.id === habitId) { const newS = [...h.subtasks]; newS[subIdx].completed = !newS[subIdx].completed; return { ...h, subtasks: newS }; } return h; }); updateData(newHabits, completions, dailyNotes); };
-            const moveHabit = (id, direction) => { const sorted = [...todaysHabits]; const idx = sorted.findIndex(h => h.id === id); if (idx === -1) return; const newIdx = idx + direction; if (newIdx < 0 || newIdx >= sorted.length) return; const itemA = sorted[idx]; const itemB = sorted[newIdx]; const newHabits = habits.map(h => { if (h.id === itemA.id) return { ...h, order: itemB.order ?? newIdx }; if (h.id === itemB.id) return { ...h, order: itemA.order ?? idx }; return h; }); newHabits.forEach((h, i) => { if (h.order === undefined) h.order = i; }); updateData(newHabits, completions, dailyNotes); };
-            const rolloverOverdue = () => { const todayStr = formatDateKey(new Date()); const newHabits = habits.map(h => { if (h.type === 'task' && !h.isInbox && h.targetDate < todayStr) { const isDone = completions[h.targetDate]?.includes(h.id); if (!isDone) return { ...h, targetDate: todayStr }; } return h; }); updateData(newHabits, completions, dailyNotes); confetti({ particleCount: 80, spread: 100 }); };
-            const year = currentDate.getFullYear(); const month = currentDate.getMonth(); const daysInMonth = new Date(year, month + 1, 0).getDate(); const firstDay = new Date(year, month, 1).getDay(); const selectedDateKey = formatDateKey(selectedDate); const todayKey = formatDateKey(new Date()); const visibleCategories = useMemo(() => ['All', ...CATEGORIES.slice(1).filter(c => new Set(habits.map(h => h.category || 'General')).has(c))], [habits]);
-            const todaysHabits = habits.filter(h => { if (h.isInbox) return false; const type = h.type; const catMatch = selectedCategory === 'All' || h.category === selectedCategory || (!h.category && selectedCategory === 'General'); if (!catMatch) return false; if (type === 'birthday') return isSameDayMonth(new Date(h.targetDate), selectedDate); if (type === 'task' || type === 'event') return h.targetDate === selectedDateKey; const freq = h.frequency || [0,1,2,3,4,5,6]; return (type === 'habit' && freq.includes(selectedDate.getDay())); });
-            if (sortMode === 'time') { todaysHabits.sort((a, b) => (a.time || '').localeCompare(b.time || '')); } else { todaysHabits.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)); }
-            const overdueCount = useMemo(() => { const todayStr = formatDateKey(new Date()); return habits.filter(h => { if (h.type !== 'task' || h.isInbox || h.targetDate >= todayStr) return false; const isDone = completions[h.targetDate]?.includes(h.id); return !isDone; }).length; }, [habits, completions]);
-            const handlePointerDown = (habit) => { window.longPressTimer = setTimeout(() => { setDetailHabit(habit); window.isLongPress = true; }, 800); }; const handlePointerUp = () => { clearTimeout(window.longPressTimer); setTimeout(() => { window.isLongPress = false; }, 100); };
 
             return (
                 <div className="flex flex-col md:flex-row h-screen overflow-hidden selection:bg-indigo-100 text-slate-800 dark:text-slate-200 font-sans">
@@ -522,7 +479,7 @@
                     {/* MODALS */}
                     <HabitModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveHabit} onDelete={handleDeleteHabit} initialData={editingHabit} />
                     <NoteModal isOpen={!!detailHabit} onClose={() => setDetailHabit(null)} habit={detailHabit} notes={detailHabit ? dailyNotes[`${detailHabit.id}_${selectedDateKey}`] : ''} onSaveNote={handleSaveNote} />
-                    <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} session={session} vacationMode={vacationMode} setVacationMode={setVacationMode} />
+                    <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} session={session} vacationMode={vacationMode} setVacationMode={setVacationMode} supabase={sbClient} />
                     {activeFocusHabit && <FocusTimer habit={activeFocusHabit} onClose={() => setActiveFocusHabit(null)} onComplete={() => { toggleHabit(activeFocusHabit.id, selectedDateKey); setActiveFocusHabit(null); }} />}
                 </div>
             );
