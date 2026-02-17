@@ -35,6 +35,8 @@
         .no-select { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
         .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
         .dark .glass { background: rgba(15, 23, 42, 0.85); }
+        /* Prevent iOS zoom on inputs */
+        input, textarea { font-size: 16px !important; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900 dark:bg-dark-900 dark:text-gray-200 transition-colors duration-300 font-sans selection:bg-indigo-500 selection:text-white">
@@ -232,13 +234,12 @@
             if (!isOpen) return null;
             
             const handleRestore = () => {
-                if (restoreInput.trim().length > 5) {
-                    if(confirm("This will replace your current data. Are you sure?")) {
-                        localStorage.setItem('habit_user_id', restoreInput.trim());
-                        window.location.reload();
-                    }
+                const id = restoreInput.trim();
+                if (id.length > 5) {
+                    localStorage.setItem('habit_user_id', id);
+                    window.location.reload(); 
                 } else {
-                    alert("Invalid ID");
+                    setRestoreInput('Invalid ID');
                 }
             };
 
@@ -266,7 +267,7 @@
                             <div>
                                 <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Restore Backup</h4>
                                 <div className="flex gap-2">
-                                    <input type="text" placeholder="Paste ID here..." value={restoreInput} onChange={e => setRestoreInput(e.target.value)} className="flex-1 p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" />
+                                    <input type="text" placeholder="Paste ID here..." value={restoreInput} onChange={e => setRestoreInput(e.target.value)} className={`flex-1 p-3 bg-gray-50 dark:bg-dark-900 border ${restoreInput === 'Invalid ID' ? 'border-red-500 text-red-500' : 'border-gray-200 dark:border-dark-700'} rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white`} style={{fontSize: '16px'}} />
                                     <button onClick={handleRestore} className="bg-indigo-600 text-white px-4 rounded-xl font-bold text-xs shadow-md">Load</button>
                                 </div>
                             </div>
@@ -316,25 +317,35 @@
             const [selectedCategory, setSelectedCategory] = useState('All');
             const [activeFocusHabit, setActiveFocusHabit] = useState(null);
             const longPressTimer = useRef(null);
+            
+            // --- SYNC WITH SUPABASE ---
             const [sbClient, setSbClient] = useState(null);
 
             useEffect(() => { localStorage.setItem('habit_user_id', userId); }, [userId]);
             useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
             
-            // --- SYNC WITH SUPABASE ---
+            // 1. Initialize Supabase Client with Retry
             useEffect(() => {
-                const interval = setInterval(() => {
-                    if (window.supabase && !sbClient && !SUPABASE_URL.includes('PASTE')) {
+                let attempts = 0;
+                const tryInit = () => {
+                    if (window.supabase) {
                         try {
-                            const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                            setSbClient(client);
-                            clearInterval(interval);
-                        } catch(e) { console.error(e); }
+                            if (SUPABASE_URL.includes('PASTE') || SUPABASE_KEY.includes('PASTE')) {
+                                console.warn("Supabase Keys missing.");
+                                return;
+                            }
+                            const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                            setSbClient(sb);
+                        } catch(e) { console.error("Init failed", e); }
+                    } else if (attempts < 10) {
+                        attempts++;
+                        setTimeout(tryInit, 500);
                     }
-                }, 500);
-                return () => clearInterval(interval);
-            }, [sbClient]);
+                };
+                tryInit();
+            }, []);
 
+            // 2. Fetch Data once Client is ready
             useEffect(() => {
                 const fetchData = async () => {
                     if (!sbClient) return;
