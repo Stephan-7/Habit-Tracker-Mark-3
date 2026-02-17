@@ -9,7 +9,6 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
@@ -43,13 +42,22 @@
 
     <script type="text/babel">
         // ==========================================
-        // ⚠️ PASTE YOUR KEYS HERE (KEEP THE QUOTES!)
+        // ⚠️ PASTE YOUR KEYS HERE
         // ==========================================
-        const SUPABASE_URL = 'https://skamctiefnbynpfkcrtt.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrYW1jdGllZm5ieW5wZmtjcnR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0MDk3MzcsImV4cCI6MjA4NTk4NTczN30.wm3orZAzxyZQ-gKgPxiQ59xKQJMEmHSVOVdv4ojJyAE'; 
+        const SUPABASE_URL = 'https://ncfgnaqfmuohblaedaka.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZmduYXFmbXVvaGJsYWVkYWthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNTI3MjksImV4cCI6MjA4NTYyODcyOX0.ygUbFJ9z7GQ3HG4SfOviMjMFc11TM0UQDoGuGGNk9lI'; 
         // ==========================================
 
         const { useState, useEffect, useMemo, useRef } = React;
+        
+        let supabase = null;
+        try {
+            if (window.supabase) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            }
+        } catch(e) {
+            console.warn("Running in Offline Mode");
+        }
 
         // --- ICONS ---
         const Icon = ({ children, size=20, className="" }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>;
@@ -179,18 +187,106 @@
         };
 
         const FocusTimer = ({ habit, onClose, onComplete }) => {
-            const [timeLeft, setTimeLeft] = useState(25 * 60); const [isActive, setIsActive] = useState(false);
-            const formatTime = (seconds) => { const mins = Math.floor(seconds / 60); const secs = seconds % 60; return `${mins}:${secs < 10 ? '0' : ''}${secs}`; };
-            useEffect(() => { let interval = null; if (isActive && timeLeft > 0) interval = setInterval(() => setTimeLeft(t => t - 1), 1000); else if (timeLeft === 0) { setIsActive(false); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); } return () => clearInterval(interval); }, [isActive, timeLeft]);
+            const [duration, setDuration] = useState(25);
+            const [timeLeft, setTimeLeft] = useState(25 * 60);
+            const [isActive, setIsActive] = useState(false);
+            
+            const formatTime = (seconds) => { 
+                const mins = Math.floor(seconds / 60); 
+                const secs = seconds % 60; 
+                return `${mins}:${secs < 10 ? '0' : ''}${secs}`; 
+            };
+            
+            const handleSetTime = (mins) => {
+                setDuration(mins);
+                setTimeLeft(mins * 60);
+                setIsActive(false);
+            };
+
+            useEffect(() => { 
+                let interval = null; 
+                if (isActive && timeLeft > 0) interval = setInterval(() => setTimeLeft(t => t - 1), 1000); 
+                else if (timeLeft === 0) { setIsActive(false); new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play().catch(()=>{}); } 
+                return () => clearInterval(interval); 
+            }, [isActive, timeLeft]);
+            
             return (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-dark-900 text-white modal-animate"><button onClick={onClose} className="absolute top-6 right-6 p-2 text-gray-400 hover:text-white"><X size={32}/></button><div className="flex flex-col items-center gap-8"><div className="text-xl font-medium text-indigo-400 flex items-center gap-2">{habit.icon} {habit.name}</div><div className="text-9xl font-bold font-mono tracking-tighter tabular-nums">{formatTime(timeLeft)}</div><div className="flex gap-6"><button onClick={() => setIsActive(!isActive)} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${isActive ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>{isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1"/>}</button></div>{timeLeft === 0 && <button onClick={onComplete} className="px-8 py-3 bg-white text-dark-900 font-bold rounded-full animate-bounce">Complete Task</button>}</div></div>
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-dark-900/95 backdrop-blur text-white modal-animate">
+                    <button onClick={onClose} className="absolute top-6 right-6 p-2 text-gray-400 hover:text-white"><X size={32}/></button>
+                    <div className="flex flex-col items-center gap-8 w-full max-w-sm px-4">
+                        <div className="text-xl font-medium text-indigo-400 flex items-center gap-2">{habit.icon} {habit.name}</div>
+                        <div className="text-9xl font-bold font-mono tracking-tighter tabular-nums">{formatTime(timeLeft)}</div>
+                        
+                        {!isActive && (
+                            <div className="flex gap-2">
+                                {[15, 25, 45, 60].map(m => (
+                                    <button key={m} onClick={() => handleSetTime(m)} className={`px-4 py-2 rounded-full font-bold text-sm transition-all ${duration === m ? 'bg-white text-dark-900' : 'bg-dark-800 text-gray-400 hover:bg-dark-700'}`}>{m}m</button>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex gap-6">
+                            <button onClick={() => setIsActive(!isActive)} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-2xl ${isActive ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
+                                {isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1"/>}
+                            </button>
+                        </div>
+                        {timeLeft === 0 && <button onClick={onComplete} className="px-8 py-3 bg-white text-dark-900 font-bold rounded-full animate-bounce">Complete Task</button>}
+                    </div>
+                </div>
             );
         };
 
-        const SettingsModal = ({ isOpen, onClose, userId, setUserId, onImport, onExport, vacationMode, setVacationMode, onRestore }) => {
+        const SettingsModal = ({ isOpen, onClose, userId, setUserId, onImport, onExport, vacationMode, setVacationMode }) => {
+            const [restoreInput, setRestoreInput] = useState('');
             if (!isOpen) return null;
+            
+            const handleRestore = () => {
+                if (restoreInput.trim().length > 5) {
+                    if(confirm("This will replace your current data. Are you sure?")) {
+                        localStorage.setItem('habit_user_id', restoreInput.trim());
+                        window.location.reload();
+                    }
+                } else {
+                    alert("Invalid ID");
+                }
+            };
+
             return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"><div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl w-full max-w-sm modal-animate overflow-hidden max-h-[90vh] overflow-y-auto"><div className="px-6 py-4 border-b border-gray-100 dark:border-dark-700 flex justify-between items-center"><h3 className="font-bold text-gray-800 dark:text-gray-100">Settings</h3><button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button></div><div className="p-6 space-y-6"><div className="flex items-center justify-between"><div><h4 className="text-sm font-bold dark:text-gray-200">Vacation Mode ✈️</h4><p className="text-[10px] text-gray-400">Pause streaks while away.</p></div><div onClick={() => setVacationMode(!vacationMode)} className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer ${vacationMode ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-dark-600'}`}><div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${vacationMode ? 'translate-x-5' : ''}`}></div></div></div><div><h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Data & Backup</h4><div className="space-y-3"><div className="p-3 bg-gray-50 dark:bg-dark-900 rounded-xl border border-gray-200 dark:border-dark-700"><p className="text-[10px] text-gray-400 uppercase mb-1">Your ID</p><p className="font-mono text-xs text-gray-800 dark:text-gray-300 select-all">{userId}</p></div><div className="flex gap-2"><button onClick={onExport} className="flex-1 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold flex items-center justify-center gap-2"><Download size={14}/> Export JSON</button><label className="flex-1 py-2 bg-gray-50 dark:bg-dark-700 text-gray-600 dark:text-gray-300 rounded-lg text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"><Upload size={14}/> Import<input type="file" onChange={onImport} className="hidden" accept=".json"/></label></div><button onClick={onRestore} className="w-full py-2 text-xs text-gray-400 underline">Restore from Backup ID</button></div></div></div></div></div>
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl w-full max-w-sm modal-animate overflow-hidden max-h-[90vh] overflow-y-auto">
+                        <div className="px-6 py-4 border-b border-gray-100 dark:border-dark-700 flex justify-between items-center">
+                            <h3 className="font-bold text-gray-800 dark:text-gray-100">Settings</h3>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+                        </div>
+                        <div className="p-6 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <div><h4 className="text-sm font-bold dark:text-gray-200">Vacation Mode ✈️</h4><p className="text-[10px] text-gray-400">Pause streaks while away.</p></div>
+                                <div onClick={() => setVacationMode(!vacationMode)} className={`w-10 h-5 rounded-full relative transition-colors cursor-pointer ${vacationMode ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-dark-600'}`}><div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${vacationMode ? 'translate-x-5' : ''}`}></div></div>
+                            </div>
+                            
+                            <div>
+                                <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Your Data ID</h4>
+                                <div className="p-3 bg-gray-50 dark:bg-dark-900 rounded-xl border border-gray-200 dark:border-dark-700 select-all font-mono text-xs text-center text-gray-600 dark:text-gray-300 break-all">
+                                    {userId}
+                                </div>
+                                <p className="text-[10px] text-gray-400 mt-1 text-center">Save this ID to restore data on other devices.</p>
+                            </div>
+
+                            <div>
+                                <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Restore Backup</h4>
+                                <div className="flex gap-2">
+                                    <input type="text" placeholder="Paste ID here..." value={restoreInput} onChange={e => setRestoreInput(e.target.value)} className="flex-1 p-3 bg-gray-50 dark:bg-dark-900 border border-gray-200 dark:border-dark-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" />
+                                    <button onClick={handleRestore} className="bg-indigo-600 text-white px-4 rounded-xl font-bold text-xs shadow-md">Load</button>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
+                                <button onClick={onExport} className="flex-1 py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold flex items-center justify-center gap-2"><Download size={16}/> Save File</button>
+                                <label className="flex-1 py-3 bg-gray-50 dark:bg-dark-700 text-gray-600 dark:text-gray-300 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"><Upload size={16}/> Load File<input type="file" onChange={onImport} className="hidden" accept=".json"/></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             );
         };
 
@@ -242,7 +338,6 @@
                 const tryInit = () => {
                     if (window.supabase) {
                         try {
-                            // CHECK IF KEYS ARE PASTED
                             if (SUPABASE_URL.includes('PASTE') || SUPABASE_KEY.includes('PASTE')) {
                                 console.warn("Supabase Keys missing.");
                                 return;
@@ -450,7 +545,7 @@
                     </div>
                     
                     {/* MODALS */}
-                    <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} userId={userId} setUserId={setUserId} onImport={handleImport} onExport={handleExport} vacationMode={vacationMode} setVacationMode={setVacationMode} onRestore={() => {const c = prompt("Backup ID:"); if(c) {setUserId(c); window.location.reload();}}} />
+                    <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} userId={userId} setUserId={setUserId} onImport={handleImport} onExport={handleExport} vacationMode={vacationMode} setVacationMode={setVacationMode} />
                     <HabitModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveHabit} onDelete={handleDeleteHabit} initialData={editingHabit} />
                     <NoteModal isOpen={!!detailHabit} onClose={() => setDetailHabit(null)} habit={detailHabit} streak={detailHabit ? calculateStreak(detailHabit.id, completions) : 0} notes={detailHabit ? dailyNotes[`${detailHabit.id}_${selectedDateKey}`] : ''} onSaveNote={handleSaveNote} />
                     {activeFocusHabit && <FocusTimer habit={activeFocusHabit} onClose={() => setActiveFocusHabit(null)} onComplete={() => { toggleHabit(activeFocusHabit.id, selectedDateKey); setActiveFocusHabit(null); }} />}
